@@ -54,7 +54,7 @@ Réponds UNIQUEMENT en JSON:
 
 // ─── CSS ──────────────────────────────────────────────────────────────────────
 const css = `
-  @import url('https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@400;500;600&display=swap');
+  
 
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -67,7 +67,7 @@ const css = `
     --muted: rgba(210,200,255,0.45);
   }
 
-  body { font-family: 'DM Sans', sans-serif; background: var(--bg); min-height: 100vh; color: var(--text); }
+  body { font-family: -apple-system, 'SF Pro Text', 'Segoe UI', system-ui, sans-serif; background: var(--bg); min-height: 100vh; color: var(--text); }
 
   .app {
     min-height: 100vh; display: flex; flex-direction: column;
@@ -119,7 +119,7 @@ const css = `
   @keyframes pulse-dot { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.5;transform:scale(0.8)} }
 
   .header h1 {
-    font-family: 'Syne', sans-serif;
+    font-family: -apple-system, 'SF Pro Display', 'Segoe UI Black', system-ui, sans-serif; letter-spacing: -0.5px;
     font-size: clamp(34px, 7vw, 56px);
     font-weight: 800; line-height: 1.0; letter-spacing: -2px; margin-bottom: 12px;
   }
@@ -162,7 +162,7 @@ const css = `
   .setup-pill {
     display: inline-flex; align-items: center; gap: 8px;
     padding: 9px 18px; border-radius: 999px; border: 2px solid;
-    font-family: 'Syne', sans-serif; font-size: 15px; font-weight: 800;
+    font-family: -apple-system, 'SF Pro Display', 'Segoe UI Black', system-ui, sans-serif; letter-spacing: -0.5px; font-size: 15px; font-weight: 800;
     margin-bottom: 28px;
   }
 
@@ -185,7 +185,7 @@ const css = `
   .training-card:hover { background: var(--surface-hover); transform: translateY(-4px); box-shadow: 0 9px 0 rgba(0,0,0,0.45), 0 20px 48px rgba(0,0,0,0.35); }
   .training-card:active { transform: translateY(4px) scale(0.98)!important; box-shadow: 0 1px 0 rgba(0,0,0,0.5)!important; transition-duration:.07s!important; }
   .training-icon { font-size: 36px; margin-bottom: 10px; }
-  .training-label { font-family: 'Syne', sans-serif; font-size: 14px; font-weight: 800; margin-bottom: 6px; line-height:1.3; color:#EDE9FF; }
+  .training-label { font-family: -apple-system, 'SF Pro Display', 'Segoe UI Black', system-ui, sans-serif; letter-spacing: -0.5px; font-size: 14px; font-weight: 800; margin-bottom: 6px; line-height:1.3; color:#EDE9FF; }
   .training-desc { font-size: 12px; color: var(--muted); line-height:1.55; }
 
   /* Chapter chips */
@@ -219,7 +219,7 @@ const css = `
   .mode-card:hover { background: var(--surface-hover); transform: translateY(-4px); box-shadow: 0 9px 0 rgba(0,0,0,0.45), 0 20px 40px rgba(0,0,0,0.35); }
   .mode-card:active { transform: translateY(4px) scale(0.98)!important; box-shadow: 0 1px 0 rgba(0,0,0,0.5)!important; transition-duration:.07s!important; }
   .mode-icon { font-size: 28px; margin-bottom: 8px; }
-  .mode-label { font-family: 'Syne', sans-serif; font-size: 15px; font-weight: 800; margin-bottom: 4px; color:#EDE9FF; }
+  .mode-label { font-family: -apple-system, 'SF Pro Display', 'Segoe UI Black', system-ui, sans-serif; letter-spacing: -0.5px; font-size: 15px; font-weight: 800; margin-bottom: 4px; color:#EDE9FF; }
   .mode-desc { font-size: 12px; color: var(--muted); line-height:1.5; }
 
   /* CTA Button */
@@ -227,7 +227,7 @@ const css = `
     display: block; width: 100%; padding: 18px 24px;
     border-radius: 16px; border: none;
     background: linear-gradient(135deg, #FBBF24 0%, #F97316 100%);
-    color: #1a0a00; font-family: 'Syne', sans-serif; font-size: 16px; font-weight: 800;
+    color: #1a0a00; font-family: -apple-system, 'SF Pro Display', 'Segoe UI Black', system-ui, sans-serif; letter-spacing: -0.5px; font-size: 16px; font-weight: 800;
     cursor: pointer; letter-spacing: 0.3px;
     transition: transform .16s cubic-bezier(.34,1.56,.64,1), box-shadow .16s;
     box-shadow: 0 6px 0 #92400E, 0 10px 32px rgba(251,191,36,0.3);
@@ -247,7 +247,7 @@ const css = `
     display: inline-flex; align-items: center; gap: 6px;
     background: rgba(255,255,255,0.07); border: 1.5px solid rgba(255,255,255,0.12);
     color: rgba(200,190,255,0.6); padding: 9px 16px; border-radius: 10px;
-    font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 500;
+    font-family: -apple-system, 'SF Pro Text', 'Segoe UI', system-ui, sans-serif; font-size: 13px; font-weight: 500;
     cursor: pointer; margin-bottom: 24px;
     transition: transform .14s cubic-bezier(.34,1.56,.64,1), background .12s, box-shadow .14s, color .12s;
     box-shadow: 0 3px 0 rgba(0,0,0,0.45); user-select: none;
@@ -291,7 +291,7 @@ const css = `
     background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
   }
   .q-label { font-size: 11px; letter-spacing: 2.5px; text-transform: uppercase; color: rgba(200,190,255,0.4); margin-bottom: 12px; font-weight: 600; }
-  .q-text { font-family: 'Syne', sans-serif; font-size: 18px; font-weight: 700; line-height: 1.45; color: #F0EEFF; }
+  .q-text { font-family: -apple-system, 'SF Pro Display', 'Segoe UI Black', system-ui, sans-serif; letter-spacing: -0.5px; font-size: 18px; font-weight: 700; line-height: 1.45; color: #F0EEFF; }
   .q-context {
     font-size: 13px; color: rgba(200,190,255,0.65); margin-top: 14px; line-height: 1.65;
     padding: 14px 16px; background: rgba(251,191,36,0.07); border-radius: 12px;
@@ -303,7 +303,7 @@ const css = `
   .choice-btn {
     width: 100%; padding: 15px 18px; border-radius: 14px;
     border: 1.5px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.05);
-    color: #EDE9FF; font-family: 'DM Sans', sans-serif; font-size: 15px; text-align: left;
+    color: #EDE9FF; font-family: -apple-system, 'SF Pro Text', 'Segoe UI', system-ui, sans-serif; font-size: 15px; text-align: left;
     cursor: pointer;
     transition: transform .14s cubic-bezier(.34,1.56,.64,1), background .12s, border-color .12s, box-shadow .14s;
     box-shadow: 0 4px 0 rgba(0,0,0,0.45), 0 8px 20px rgba(0,0,0,0.2);
@@ -336,7 +336,7 @@ const css = `
     border: 1px solid rgba(167,139,250,0.28); border-radius: 18px; padding: 22px; margin-bottom: 14px;
     box-shadow: 0 0 32px rgba(139,92,246,0.07);
   }
-  .correction-card h3 { font-family: 'Syne', sans-serif; font-size: 14px; color: #C4B5FD; margin-bottom: 12px; font-weight: 700; }
+  .correction-card h3 { font-family: -apple-system, 'SF Pro Display', 'Segoe UI Black', system-ui, sans-serif; letter-spacing: -0.5px; font-size: 14px; color: #C4B5FD; margin-bottom: 12px; font-weight: 700; }
   .correction-text { font-size: 14px; line-height: 1.75; color: rgba(220,210,255,0.82); }
   .points-cles { margin-top: 16px; display: flex; flex-direction: column; gap: 9px; }
   .point { display: flex; align-items: flex-start; gap: 10px; font-size: 13px; color: rgba(200,190,255,0.7); }
@@ -346,7 +346,7 @@ const css = `
   .answer-area {
     width: 100%; min-height: 140px; background: rgba(255,255,255,0.05);
     border: 1.5px solid rgba(255,255,255,0.1); border-radius: 16px; padding: 16px;
-    color: #EDE9FF; font-family: 'DM Sans', sans-serif; font-size: 15px;
+    color: #EDE9FF; font-family: -apple-system, 'SF Pro Text', 'Segoe UI', system-ui, sans-serif; font-size: 15px;
     line-height: 1.6; resize: vertical; outline: none; margin-bottom: 12px;
     transition: border-color .2s, box-shadow .2s;
   }
@@ -359,14 +359,14 @@ const css = `
     width: 130px; height: 130px; border-radius: 50%;
     display: flex; align-items: center; justify-content: center;
     margin: 0 auto 20px;
-    font-family: 'Syne', sans-serif; font-size: 38px; font-weight: 800; border: 4px solid;
+    font-family: -apple-system, 'SF Pro Display', 'Segoe UI Black', system-ui, sans-serif; letter-spacing: -0.5px; font-size: 38px; font-weight: 800; border: 4px solid;
   }
-  .score-message { font-family: 'Syne', sans-serif; font-size: 24px; font-weight: 800; margin-bottom: 6px; }
+  .score-message { font-family: -apple-system, 'SF Pro Display', 'Segoe UI Black', system-ui, sans-serif; letter-spacing: -0.5px; font-size: 24px; font-weight: 800; margin-bottom: 6px; }
   .score-sub { font-size: 13px; color: var(--muted); margin-bottom: 28px; }
 
   .divider { height: 1px; background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent); margin: 24px 0; }
   .hint { text-align: center; font-size: 12px; color: rgba(200,190,255,0.28); margin-top: 8px; }
-  .err { color: #F87171; text-align: center; padding: 40px 0; font-family: 'DM Sans', sans-serif; }
+  .err { color: #F87171; text-align: center; padding: 40px 0; font-family: -apple-system, 'SF Pro Text', 'Segoe UI', system-ui, sans-serif; }
 `;
 
 // ─── Components ───────────────────────────────────────────────────────────────
