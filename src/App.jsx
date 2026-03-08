@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { SpeedInsights } from "@vercel/speed-insights/react";
 
 // ─── Data ────────────────────────────────────────────────────────────────────
 const SUBJECTS = [
@@ -369,7 +370,7 @@ const css = `
   .err { color: #F87171; text-align: center; padding: 40px 0; font-family: -apple-system, 'SF Pro Text', 'Segoe UI', system-ui, sans-serif; }
 `;
 
-// ─── Components ───────────────────────────────────────────────────────────────
+// ─── Components ────────────��──────────────────────────────────────────────────
 function Spinner({ text = "Génération en cours…" }) {
   return (
     <div className="loading">
@@ -641,6 +642,7 @@ export default function App() {
           {screen === "long" && subject && <LongMode subject={subject} chapter={chapter} onBack={goHome} />}
         </div>
       </div>
+      <SpeedInsights />
     </>
   );
 }
