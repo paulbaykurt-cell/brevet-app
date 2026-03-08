@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { Analytics } from "@vercel/analytics/react";
 
 // ─── Data ────────────────────────────────────────────────────────────────────
 const SUBJECTS = [
@@ -369,7 +370,7 @@ const css = `
   .err { color: #F87171; text-align: center; padding: 40px 0; font-family: -apple-system, 'SF Pro Text', 'Segoe UI', system-ui, sans-serif; }
 `;
 
-// ─── Components ───────────────────────────────────────────────────────────────
+// ─── Components ──────────────────────────────────���────────────────────────────
 function Spinner({ text = "Génération en cours…" }) {
   return (
     <div className="loading">
@@ -607,6 +608,7 @@ export default function App() {
         <div className="orb orb-3" /><div className="orb orb-4" />
 
         <div className="container">
+          <Analytics />
           {screen === "home" && (
             <>
               <div className="header">
