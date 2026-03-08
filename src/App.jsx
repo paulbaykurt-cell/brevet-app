@@ -254,22 +254,24 @@ const css = `
   .err { color: #F87171; text-align: center; padding: 40px 0; font-family: var(--font-b); }
 
   /* ── Floating tools ── */
-  .float-tools { position: fixed; bottom: 24px; right: 16px; display: flex; flex-direction: column; gap: 10px; z-index: 100; }
-  .float-btn { width: 48px; height: 48px; border-radius: 50%; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 20px; transition: transform .16s cubic-bezier(.34,1.56,.64,1), box-shadow .16s; user-select: none; }
-  .float-btn:hover { transform: scale(1.12) translateY(-2px); }
-  .float-btn:active { transform: scale(0.93)!important; transition-duration:.07s!important; }
-  .float-btn-calc { background: linear-gradient(135deg, #3B82F6, #1D4ED8); box-shadow: 0 4px 0 #1e3a8a, 0 6px 20px rgba(59,130,246,0.4); }
-  .float-btn-notes { background: linear-gradient(135deg, #8B5CF6, #6D28D9); box-shadow: 0 4px 0 #4c1d95, 0 6px 20px rgba(139,92,246,0.4); }
+  .float-tools { position: fixed; bottom: 24px; right: 14px; display: flex; flex-direction: column; gap: 12px; z-index: 100; }
+  .float-btn { width: 64px; height: 64px; border-radius: 20px; border: none; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; font-size: 24px; transition: transform .16s cubic-bezier(.34,1.56,.64,1), box-shadow .16s; user-select: none; }
+  .float-btn .fb-label { font-size: 10px; font-weight: 700; letter-spacing: 0.3px; line-height: 1; }
+  .float-btn:hover { transform: scale(1.1) translateY(-3px); }
+  .float-btn:active { transform: scale(0.92)!important; transition-duration:.07s!important; }
+  .float-btn-calc { background: linear-gradient(135deg, #3B82F6, #1D4ED8); box-shadow: 0 5px 0 #1e3a8a, 0 8px 24px rgba(59,130,246,0.5); color: white; }
+  .float-btn-calc.active { box-shadow: 0 2px 0 #1e3a8a, 0 0 32px rgba(59,130,246,0.6) !important; transform: scale(0.96) !important; }
+  .float-btn-notes { background: linear-gradient(135deg, #8B5CF6, #6D28D9); box-shadow: 0 5px 0 #4c1d95, 0 8px 24px rgba(139,92,246,0.5); color: white; }
+  .float-btn-notes.active { box-shadow: 0 2px 0 #4c1d95, 0 0 32px rgba(139,92,246,0.6) !important; transform: scale(0.96) !important; }
 
-  /* ── Overlay panel ── */
-  .overlay { position: fixed; inset: 0; z-index: 200; display: flex; align-items: flex-end; justify-content: center; padding: 16px; background: rgba(0,0,0,0.5); backdrop-filter: blur(4px); animation: fadeIn .2s ease; }
-  @keyframes fadeIn { from{opacity:0} to{opacity:1} }
-  .panel { background: #1A1630; border: 1px solid rgba(255,255,255,0.12); border-radius: 24px; width: 100%; max-width: 400px; padding: 20px; box-shadow: 0 -8px 40px rgba(0,0,0,0.5); animation: slideUp .25s cubic-bezier(.34,1.56,.64,1); }
-  @keyframes slideUp { from{transform:translateY(60px);opacity:0} to{transform:translateY(0);opacity:1} }
-  .panel-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
-  .panel-title { font-family: var(--font-d); font-size: 16px; font-weight: 800; color: #EDE9FF; }
-  .panel-close { background: rgba(255,255,255,0.1); border: none; color: rgba(255,255,255,0.6); width: 30px; height: 30px; border-radius: 50%; cursor: pointer; font-size: 16px; display: flex; align-items: center; justify-content: center; transition: all .15s; }
-  .panel-close:hover { background: rgba(255,255,255,0.18); color: #fff; }
+  /* ── Side panels (non-blocking) ── */
+  .side-panels { position: fixed; bottom: 110px; right: 14px; display: flex; flex-direction: column; gap: 12px; z-index: 99; }
+  .panel { background: #1A1630; border: 1px solid rgba(255,255,255,0.14); border-radius: 20px; width: 300px; max-width: calc(100vw - 28px); padding: 16px; box-shadow: -4px 4px 32px rgba(0,0,0,0.6); animation: slideInRight .25s cubic-bezier(.34,1.56,.64,1); }
+  @keyframes slideInRight { from{transform:translateX(40px);opacity:0} to{transform:translateX(0);opacity:1} }
+  .panel-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+  .panel-title { font-family: var(--font-d); font-size: 14px; font-weight: 800; color: #EDE9FF; }
+  .panel-close { background: rgba(255,255,255,0.1); border: none; color: rgba(255,255,255,0.6); width: 26px; height: 26px; border-radius: 50%; cursor: pointer; font-size: 13px; display: flex; align-items: center; justify-content: center; transition: all .15s; }
+  .panel-close:hover { background: rgba(255,255,255,0.2); color: #fff; }
 
   /* Calculator */
   .calc-display { background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 14px 16px; text-align: right; font-family: var(--font-d); font-size: 26px; font-weight: 700; color: #fff; margin-bottom: 12px; min-height: 56px; word-break: break-all; }
@@ -336,30 +338,28 @@ function Calculator({ onClose }) {
   ];
 
   return (
-    <div className="overlay" onClick={onClose}>
-      <div className="panel" onClick={e => e.stopPropagation()}>
-        <div className="panel-header">
-          <span className="panel-title">🧮 Calculatrice</span>
-          <button className="panel-close" onClick={onClose}>✕</button>
-        </div>
-        <div className="calc-display">{display}</div>
-        <div className="calc-grid">
-          {btns.flat().map((b, i) => {
-            let cls = "calc-btn ";
-            if (b === "C") cls += "calc-clear";
-            else if (b === "=") cls += "calc-eq";
-            else if (["+","-","×","÷","%","±"].includes(String(b))) cls += "calc-op";
-            else cls += "calc-num";
-            const isZero = b === 0;
-            return (
-              <button key={i} className={cls}
-                style={isZero ? { gridColumn: "span 2" } : {}}
-                onClick={() => press(b)}>
-                {b}
-              </button>
-            );
-          })}
-        </div>
+    <div className="panel">
+      <div className="panel-header">
+        <span className="panel-title">🧮 Calculatrice</span>
+        <button className="panel-close" onClick={onClose}>✕</button>
+      </div>
+      <div className="calc-display">{display}</div>
+      <div className="calc-grid">
+        {btns.flat().map((b, i) => {
+          let cls = "calc-btn ";
+          if (b === "C") cls += "calc-clear";
+          else if (b === "=") cls += "calc-eq";
+          else if (["+","-","×","÷","%","±"].includes(String(b))) cls += "calc-op";
+          else cls += "calc-num";
+          const isZero = b === 0;
+          return (
+            <button key={i} className={cls}
+              style={isZero ? { gridColumn: "span 2" } : {}}
+              onClick={() => press(b)}>
+              {b}
+            </button>
+          );
+        })}
       </div>
     </div>
   );
@@ -375,14 +375,12 @@ function Notes({ onClose }) {
     try { sessionStorage.setItem("brevet_notes", v); } catch {}
   };
   return (
-    <div className="overlay" onClick={onClose}>
-      <div className="panel" onClick={e => e.stopPropagation()}>
-        <div className="panel-header">
-          <span className="panel-title">📝 Mes notes</span>
-          <button className="panel-close" onClick={onClose}>✕</button>
-        </div>
-        <textarea className="notes-area" placeholder="Écris tes notes, formules, astuces..." value={text} onChange={e => save(e.target.value)} rows={8} />
+    <div className="panel">
+      <div className="panel-header">
+        <span className="panel-title">📝 Mes notes</span>
+        <button className="panel-close" onClick={onClose}>✕</button>
       </div>
+      <textarea className="notes-area" placeholder="Écris tes notes, formules, astuces..." value={text} onChange={e => save(e.target.value)} rows={6} />
     </div>
   );
 }
@@ -394,11 +392,19 @@ function FloatTools({ showCalc }) {
   return (
     <>
       <div className="float-tools">
-        {showCalc && <button className="float-btn float-btn-calc" title="Calculatrice" onClick={() => setCalc(true)}>🧮</button>}
-        <button className="float-btn float-btn-notes" title="Mes notes" onClick={() => setNotes(true)}>📝</button>
+        {showCalc && (
+          <button className={"float-btn float-btn-calc" + (calc ? " active" : "")} onClick={() => setCalc(v => !v)}>
+            🧮<span className="fb-label">Calc</span>
+          </button>
+        )}
+        <button className={"float-btn float-btn-notes" + (notes ? " active" : "")} onClick={() => setNotes(v => !v)}>
+          📝<span className="fb-label">Notes</span>
+        </button>
       </div>
-      {calc && <Calculator onClose={() => setCalc(false)} />}
-      {notes && <Notes onClose={() => setNotes(false)} />}
+      <div className="side-panels">
+        {calc && showCalc && <Calculator onClose={() => setCalc(false)} />}
+        {notes && <Notes onClose={() => setNotes(false)} />}
+      </div>
     </>
   );
 }
