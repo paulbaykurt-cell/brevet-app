@@ -7,6 +7,7 @@ const SUBJECTS = [
   { id: "svt",      label: "SVT",              icon: "🔬", color: "#FBBF24", glow: "rgba(251,191,36,0.35)"  },
   { id: "physique", label: "Physique-Chimie",  icon: "⚗️",  color: "#F87171", glow: "rgba(248,113,113,0.35)" },
 
+  { id: "anglais",  label: "Anglais",          icon: "🗣️",  color: "#F472B6", glow: "rgba(244,114,182,0.35)" },
   { id: "emc",      label: "EMC",              icon: "⚖️",  color: "#22D3EE", glow: "rgba(34,211,238,0.35)"  },
   { id: "techno",   label: "Technologie",      icon: "🖥️",  color: "#FB923C", glow: "rgba(251,146,60,0.35)"  },
 ];
@@ -18,6 +19,7 @@ const CHAPTERS = {
   svt:      ["Génétique & Hérédité","Évolution des espèces","Corps humain & Santé","Écosystèmes","Géologie","Reproduction"],
   physique: ["Mécanique","Électricité","Optique","Chimie organique","Atomes & Molécules","Énergie & Puissance"],
 
+  anglais:  ["Grammaire","Vocabulaire thématique","Compréhension écrite","Expression écrite","Temps & Conjugaison"],
   emc:      ["Démocratie & Citoyenneté","Droits & Libertés","Laïcité","Institutions françaises","Engagement citoyen"],
   techno:   ["Programmation & Algorithmes","Systèmes techniques","Réseaux & Internet","Développement durable","Projet technologique"],
 };
