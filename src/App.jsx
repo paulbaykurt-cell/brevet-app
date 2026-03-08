@@ -6,7 +6,7 @@ const SUBJECTS = [
   { id: "histoire", label: "Histoire-Géo",     icon: "🌍", color: "#34D399", glow: "rgba(52,211,153,0.35)"  },
   { id: "svt",      label: "SVT",              icon: "🔬", color: "#FBBF24", glow: "rgba(251,191,36,0.35)"  },
   { id: "physique", label: "Physique-Chimie",  icon: "⚗️",  color: "#F87171", glow: "rgba(248,113,113,0.35)" },
-  { id: "anglais",  label: "Anglais",          icon: "🗣️",  color: "#F472B6", glow: "rgba(244,114,182,0.35)" },
+
   { id: "emc",      label: "EMC",              icon: "⚖️",  color: "#22D3EE", glow: "rgba(34,211,238,0.35)"  },
   { id: "techno",   label: "Technologie",      icon: "🖥️",  color: "#FB923C", glow: "rgba(251,146,60,0.35)"  },
 ];
@@ -17,7 +17,7 @@ const CHAPTERS = {
   histoire: ["1ère Guerre Mondiale","2ème Guerre Mondiale","Guerre Froide","Décolonisation","La Ve République","Mondialisation","Géographie urbaine"],
   svt:      ["Génétique & Hérédité","Évolution des espèces","Corps humain & Santé","Écosystèmes","Géologie","Reproduction"],
   physique: ["Mécanique","Électricité","Optique","Chimie organique","Atomes & Molécules","Énergie & Puissance"],
-  anglais:  ["Grammaire","Vocabulaire thématique","Compréhension écrite","Expression écrite","Temps & Conjugaison"],
+
   emc:      ["Démocratie & Citoyenneté","Droits & Libertés","Laïcité","Institutions françaises","Engagement citoyen"],
   techno:   ["Programmation & Algorithmes","Systèmes techniques","Réseaux & Internet","Développement durable","Projet technologique"],
 };
@@ -131,8 +131,9 @@ const css = `
   .section-title { font-size: 11px; letter-spacing: 2.5px; text-transform: uppercase; color: rgba(200,190,255,0.38); margin-bottom: 14px; font-weight: 600; }
 
   /* Subject grid */
-  .subject-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 10px; }
-  @media (max-width:520px) { .subject-grid { grid-template-columns: repeat(2,1fr); } }
+  .subject-grid { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; }
+  .subject-card { width: calc(25% - 8px); min-width: 130px; }
+  @media (max-width:520px) { .subject-card { width: calc(50% - 6px); } }
   .subject-card { background: var(--surface); border: 1.5px solid var(--border); border-radius: 18px; padding: 20px 12px; cursor: pointer; text-align: center; transition: transform .18s cubic-bezier(.34,1.56,.64,1), background .15s, border-color .15s, box-shadow .18s; box-shadow: 0 5px 0 rgba(0,0,0,0.5), 0 10px 28px rgba(0,0,0,0.3); user-select: none; position: relative; overflow: hidden; }
   .subject-card::before { content:''; position:absolute; inset:0; border-radius:17px; background: linear-gradient(135deg,rgba(255,255,255,0.07) 0%,transparent 60%); pointer-events:none; }
   .subject-card:hover { background: var(--surface-hover); transform: translateY(-5px) scale(1.02); }
