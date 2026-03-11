@@ -23,7 +23,7 @@ const CHAPTERS = {
 };
 
 const GEOMETRY_CHAPTERS = ["Géométrie plane","Pythagore & Thalès","Trigonométrie","Volumes & Aires"];
-const MIX_SUBJECTS_LIST = SUBJECTS.map(s => s.label).join(", ");
+const MIX_SUBJECTS_LIST = SUBJECTS.filter(s => s.id !== "anglais").map(s => s.label).join(", ");
 
 async function callClaude(prompt, system) {
   const response = await fetch("/api/claude", {
