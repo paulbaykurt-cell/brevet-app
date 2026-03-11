@@ -58,11 +58,13 @@ async function callClaudeText(prompt, system) {
   return data.content?.[0]?.text || "";
 }
 
-const buildQuizPrompt = (subject, chapter) =>
-  `Génère exactement 5 questions de quiz à choix multiples sur "${subject}"${chapter ? ` chapitre "${chapter}"` : " (les sujets les plus susceptibles de tomber au brevet, tous chapitres)"}.
-Niveau 3ème, programme officiel français.
+const buildQuizPrompt = (subject, chapter) => {
+  const isAnglais = subject === "Anglais";
+  return `Génère exactement 5 questions de quiz à choix multiples sur "${subject}"${chapter ? ` chapitre "${chapter}"` : isAnglais ? " (révision générale niveau 3ème)" : " (les sujets les plus susceptibles de tomber au brevet, tous chapitres)"}.
+Niveau 3ème, programme officiel français.${isAnglais ? " C'est pour réviser l'anglais en général, pas pour le brevet écrit." : ""}
 Réponds UNIQUEMENT en JSON:
 {"questions":[{"question":"...","choices":["A. ...","B. ...","C. ...","D. ..."],"answer":"A","explanation":"..."}]}`;
+};
 
 const buildMixQuizPrompt = () =>
   `Génère exactement 5 questions de quiz à choix multiples pour réviser le brevet. Mélange: ${MIX_SUBJECTS_LIST}. Programme officiel 3ème.
@@ -76,11 +78,14 @@ Réponds UNIQUEMENT en JSON:
 
 const buildLongPrompt = (subject, chapter) => {
   const isDev = chapter === "Développement construit";
-  return isDev
-    ? `Génère 1 sujet de développement construit d'Histoire-Géographie de type brevet pour un élève de 3ème. Le développement construit est une question de synthèse notée sur 10 points au vrai brevet.
+  const isAnglais = subject === "Anglais";
+  if (isDev) return `Génère 1 sujet de développement construit d'Histoire-Géographie de type brevet pour un élève de 3ème. Le développement construit est une question de synthèse notée sur 10 points au vrai brevet.
 Réponds UNIQUEMENT en JSON:
-{"question":"...","context":"...","correction":"...","points_cles":["...","...","..."]}`
-    : `Génère 1 question ouverte de type brevet sur "${subject}"${chapter ? ` chapitre "${chapter}"` : " (parmi les sujets les plus probables au brevet)"} pour un élève de 3ème.
+{"question":"...","context":"...","correction":"...","points_cles":["...","...","..."]}`;
+  if (isAnglais) return `Génère 1 exercice de compréhension écrite ou d'expression écrite en anglais niveau 3ème${chapter ? ` sur le thème "${chapter}"` : ""}. Ce n'est pas pour le brevet écrit mais pour réviser l'anglais général.
+Réponds UNIQUEMENT en JSON:
+{"question":"...","context":"...","correction":"...","points_cles":["...","...","..."]}`;
+  return `Génère 1 question ouverte de type brevet sur "${subject}"${chapter ? ` chapitre "${chapter}"` : " (parmi les sujets les plus probables au brevet)"} pour un élève de 3ème.
 Réponds UNIQUEMENT en JSON:
 {"question":"...","context":"...","correction":"...","points_cles":["...","...","..."]}`;
 };
@@ -687,7 +692,7 @@ function SetupScreen({ subject, onStart, onBack }) {
       <div className="section-title">Comment veux-tu t'entraîner ?</div>
       <div className="training-grid">
         {[
-          { id: "mixed", icon: "🎯", label: "Tout ce qui tombe au brevet", desc: "Sujets les plus probables, tous chapitres" },
+          { id: "mixed", icon: subject.id === "anglais" ? "📖" : "🎯", label: subject.id === "anglais" ? "Révision générale" : "Tout ce qui tombe au brevet", desc: subject.id === "anglais" ? "Exercices variés niveau 3ème, tous thèmes" : "Sujets les plus probables, tous chapitres" },
           { id: "chapter", icon: "📖", label: "Par chapitre", desc: "Cible un chapitre précis" },
         ].map(t => (
           <div key={t.id} className="training-card" style={subjectStyle(trainingType===t.id)}
