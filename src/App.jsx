@@ -141,7 +141,7 @@ const css = `
   .home-tab { flex: 1; padding: 10px 8px; border-radius: 10px; border: none; background: transparent; color: var(--muted); font-family: var(--font-b); font-size: 13px; font-weight: 600; cursor: pointer; transition: all .2s; display: flex; align-items: center; justify-content: center; gap: 6px; }
   .home-tab.active { background: var(--surface); color: var(--text); box-shadow: 0 3px 8px rgba(0,0,0,0.1), 0 1px 3px rgba(0,0,0,0.08); }
 
-  .section-title { font-size: 11px; letter-spacing: 2px; text-transform: uppercase; color: var(--muted); margin-bottom: 12px; font-weight: 700; }
+  .section-title { font-size: 11px; letter-spacing: 2px; text-transform: uppercase; color: #7C5C3A; margin-bottom: 12px; font-weight: 700; }
 
   /* Subject grid */
   .subject-grid { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; }
@@ -224,7 +224,7 @@ const css = `
   /* Question card */
   .question-card { background: var(--surface); border: 1.5px solid var(--border); border-radius: 20px; padding: 24px; margin-bottom: 14px; box-shadow: 0 4px 0 var(--border2), 0 6px 20px rgba(0,0,0,0.07); position: relative; overflow: hidden; }
   .question-card::before { content:''; position:absolute; top:0; left:0; right:0; height:3px; background: linear-gradient(90deg, #D97706, #B45309); border-radius:20px 20px 0 0; }
-  .q-label { font-size: 11px; letter-spacing: 2px; text-transform: uppercase; color: var(--muted); margin-bottom: 10px; font-weight: 700; }
+  .q-label { font-size: 11px; letter-spacing: 2px; text-transform: uppercase; color: #7C5C3A; margin-bottom: 10px; font-weight: 700; }
   .q-text { font-family: var(--font-d); font-size: 17px; font-weight: 700; line-height: 1.5; color: var(--text); }
   .q-context { font-size: 13px; color: var(--text2); margin-top: 12px; line-height: 1.65; padding: 12px 14px; background: #FEF9EE; border-radius: 10px; border-left: 3px solid #D97706; }
 
@@ -242,7 +242,7 @@ const css = `
 
   /* Choices */
   .choices { display: grid; gap: 9px; margin-bottom: 14px; }
-  .choice-btn { width: 100%; padding: 14px 16px; border-radius: 12px; border: 1.5px solid var(--border); background: var(--surface); color: var(--text); font-family: var(--font-b); font-size: 15px; text-align: left; cursor: pointer; transition: transform .14s cubic-bezier(.34,1.56,.64,1), box-shadow .14s; box-shadow: 0 4px 0 var(--border2), 0 5px 14px rgba(0,0,0,0.06); user-select: none; position: relative; overflow: hidden; }
+  .choice-btn { width: 100%; padding: 14px 16px; border-radius: 12px; border: 1.5px solid var(--border); background: var(--surface); color: #2C2416; font-family: var(--font-b); font-size: 15px; text-align: left; cursor: pointer; transition: transform .14s cubic-bezier(.34,1.56,.64,1), box-shadow .14s; box-shadow: 0 4px 0 var(--border2), 0 5px 14px rgba(0,0,0,0.06); user-select: none; position: relative; overflow: hidden; }
   .choice-btn::before { content:''; position:absolute; top:0; left:0; right:0; height:50%; background: rgba(255,255,255,0.5); pointer-events:none; }
   .choice-btn:hover:not(:disabled) { background: var(--bg2); transform: translateY(-2px); box-shadow: 0 6px 0 var(--border2), 0 8px 20px rgba(0,0,0,0.08); }
   .choice-btn:active:not(:disabled) { transform: translateY(3px)!important; box-shadow: 0 1px 0 var(--border2)!important; }
@@ -270,7 +270,7 @@ const css = `
 
   .score-wrap { text-align: center; padding: 8px 0 24px; }
   .score-ring { width: 120px; height: 120px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 18px; font-family: var(--font-d); font-size: 36px; font-weight: 800; border: 4px solid; background: var(--surface); box-shadow: 0 6px 0 var(--border2), 0 10px 28px rgba(0,0,0,0.1); }
-  .score-message { font-family: var(--font-d); font-size: 22px; font-weight: 800; margin-bottom: 5px; color: var(--text); }
+  .score-message { font-family: var(--font-d); font-size: 22px; font-weight: 800; margin-bottom: 5px; color: #2C2416; }
   .score-sub { font-size: 13px; color: var(--muted); margin-bottom: 24px; }
 
   .divider { height: 1px; background: var(--border); margin: 20px 0; }
