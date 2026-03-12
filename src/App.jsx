@@ -76,6 +76,12 @@ function savePlanning(p,d){try{sessionStorage.setItem("brevet_plan",JSON.stringi
 function loadPlanning(){try{const d=sessionStorage.getItem("brevet_plan");return d?JSON.parse(d):null;}catch{return null;}}
 
 // ── API ───────────────────────────────────────────────────────────────────────
+// Délai minimum pour que l'animation soit toujours visible
+async function withMinDelay(promise, ms=700){
+  const [result] = await Promise.all([promise, new Promise(r=>setTimeout(r,ms))]);
+  return result;
+}
+
 async function callClaude(prompt, system, maxTokens=2000) {
   const r = await fetch("/api/claude",{method:"POST",headers:{"Content-Type":"application/json"},
     body:JSON.stringify({model:"claude-haiku-4-5-20251001",max_tokens:maxTokens,
@@ -99,13 +105,17 @@ async function callClaudeText(prompt) {
 const buildQuizPrompt = (subject, chapter, weak=[], count=5) => {
   const isAnglais = subject==="Anglais";
   const hint = weak.length ? ` Inclus au moins 2 questions sur ces chapitres fragiles: ${weak.join(", ")}.` : "";
-  return `Génère exactement ${count} QCM sur "${subject}"${chapter?` chapitre "${chapter}"`:isAnglais?" (révision générale 3ème)":" (sujets les plus probables au brevet)"}.${hint}
+  const seed = Math.floor(Math.random()*10000);
+  return `[Session #${seed}] Génère exactement ${count} QCM DIFFÉRENTS des sessions précédentes sur "${subject}"${chapter?` chapitre "${chapter}"`:isAnglais?" (révision générale 3ème)":" (sujets les plus probables au brevet)"}.${hint}
+Varie les thèmes, formulations et niveaux de difficulté. Évite de répéter des questions déjà vues.
 Niveau 3ème, programme officiel français.
 JSON: {"questions":[{"question":"...","chapter":"...","choices":["A. ...","B. ...","C. ...","D. ..."],"answer":"A","explanation":"..."}]}`;
 };
-const buildMixQuizPrompt = () =>
-  `Génère 5 QCM mélangés pour réviser le brevet. Matières: ${MIX_SUBJECTS_LIST}.
+const buildMixQuizPrompt = () => {
+  const seed = Math.floor(Math.random()*10000);
+  return `[Session #${seed}] Génère 5 QCM mélangés et variés pour réviser le brevet. Matières: ${MIX_SUBJECTS_LIST}. Varie les thèmes à chaque fois.
 JSON: {"questions":[{"question":"...","matiere":"...","chapter":"...","choices":["A. ...","B. ...","C. ...","D. ..."],"answer":"A","explanation":"..."}]}`;
+};
 const buildMixLongPrompt = () =>
   `Génère 1 question ouverte type brevet. Matières: ${MIX_SUBJECTS_LIST}.
 JSON: {"question":"...","matiere":"...","context":"...","correction":"...","points_cles":["...","...","..."]}`;
@@ -514,8 +524,13 @@ function StoriesMode({subject,chapter,isMix,onBack,onDone}){
   const [score,setScore]=useState(0);
   const touchX=useRef(null);
   useEffect(()=>{
+    const onKey=e=>{if(e.key==="ArrowRight"&&selected!==null)next();};
+    window.addEventListener("keydown",onKey);
+    return()=>window.removeEventListener("keydown",onKey);
+  },[selected,idx,score,questions]);
+  useEffect(()=>{
     const prompt=isMix?buildMixQuizPrompt():buildQuizPrompt(subject.label,chapter);
-    callClaude(prompt).then(d=>{setQuestions(d.questions||[]);setState("quiz");}).catch(()=>setState("error"));
+    withMinDelay(callClaude(prompt)).then(d=>{setQuestions(d.questions||[]);setState("quiz");}).catch(()=>setState("error"));
   },[]);
   const next=()=>{if(idx<questions.length-1){setIdx(i=>i+1);setSelected(null);}else onDone(score,questions.length);};
   if(state==="loading")return <Spinner text="Chargement des stories…"/>;
@@ -535,8 +550,9 @@ function StoriesMode({subject,chapter,isMix,onBack,onDone}){
             return <button key={c} className={cls} disabled={selected!==null} onClick={()=>{setSelected(c);if(c.startsWith(q.answer))setScore(s=>s+1);}}>{c}</button>;
           })}
         </div>
-        {selected&&<div style={{marginTop:10}}><div className="explanation"><strong>💡</strong>{q.explanation}</div><button className="btn-cta" onClick={next}>{idx===questions.length-1?"Voir mon score →":"Suivant → (ou swipe)"}</button></div>}
+        {selected&&<div style={{marginTop:10}}><div className="explanation"><strong>💡</strong>{q.explanation}</div><button className="btn-cta" onClick={next}>{idx===questions.length-1?"Voir mon score →":"Suivant →"}</button></div>}
       </div>
+      <p style={{textAlign:"center",fontSize:11,color:"var(--muted)",marginTop:10}}>📱 Swipe sur mobile · ← → touches clavier sur PC</p>
     </div>
   );
 }
@@ -548,7 +564,7 @@ function ExamMode({onBack}){
   const [idx,setIdx]=useState(0);
   const [answers,setAnswers]=useState({});
   const [timeLeft,setTimeLeft]=useState(30*60);
-  useEffect(()=>{callClaude(buildExamPrompt()).then(d=>{setQuestions(d.questions||[]);setState("exam");}).catch(()=>setState("error"));},[]);
+  useEffect(()=>{withMinDelay(callClaude(buildExamPrompt()),900).then(d=>{setQuestions(d.questions||[]);setState("exam");}).catch(()=>setState("error"));},[]);
   useEffect(()=>{
     if(state!=="exam")return;
     const t=setInterval(()=>setTimeLeft(v=>{if(v<=1){clearInterval(t);setState("done");return 0;}return v-1;}),1000);
@@ -612,7 +628,7 @@ function QuizMode({subject,chapter,isMix,isExpress,onBack,onStatsUpdate}){
   useEffect(()=>{
     const count=isExpress?3:5;
     const prompt=isMix?buildMixQuizPrompt():buildQuizPrompt(subject.label,chapter,weak,count);
-    callClaude(prompt).then(d=>{setQuestions(d.questions||[]);setState("question");}).catch(()=>setState("error"));
+    withMinDelay(callClaude(prompt)).then(d=>{setQuestions(d.questions||[]);setState("question");}).catch(()=>setState("error"));
   },[]);
 
   // LOT 6 : préchargement
@@ -709,7 +725,7 @@ function LongMode({subject,chapter,isMix,onBack,onStatsUpdate}){
   const isDev=chapter==="Développement construit";
   useEffect(()=>{
     const prompt=isMix?buildMixLongPrompt():buildLongPrompt(subject?.label,chapter);
-    callClaude(prompt).then(d=>{setData(d);setState("question");}).catch(()=>setState("error"));
+    withMinDelay(callClaude(prompt)).then(d=>{setData(d);setState("question");}).catch(()=>setState("error"));
   },[]);
   const handleReveal=()=>{
     setRevealed(true);
