@@ -779,14 +779,18 @@ const buildPlanningPrompt=(dateStr,daysLeft,fromDateISO,userStats)=>{
     if(userStats.totalSessions<5)profileHint+=`\nÉlève débutant (${userStats.totalSessions} sessions) : commence par les bases.`;
   }
 
+  const phaseDesc=phase==="FONDATIONS"?"révisions larges, tous chapitres":
+    phase==="CIBLAGE"?"chapitres les plus fréquents au brevet":
+    phase==="INTENSIF"?"sujets très probables uniquement":
+    "fiches synthèse, révisions légères";
+  const jsonExample=`{"jours":[{"date":"DD/MM","dateISO":"YYYY-MM-DD","jour":"Lundi","sessions":[{"matiere":"Mathématiques","chapitre":"Pythagore","duree":"20 min","exercice":"Quiz QCM"}]}]}`;
   return`Tu génères UN PLANNING DE RÉVISION PERSONNALISÉ pour le brevet 3ème.
-Brevet le : ${dateStr}. Jours restants : ${daysLeft}. Phase : ${phase}.
+Brevet le : ${dateStr}. Jours restants : ${daysLeft}. Phase : ${phase} (${phaseDesc}).
 Génère EXACTEMENT 7 jours à partir du ${from} (inclus).
 Matières : Mathématiques, Français, Histoire-Géo, SVT, Physique-Chimie, EMC, Technologie.
 Weekends : max 1-2 sessions légères. Jours de semaine : 2-3 sessions de 20 min chacune.${profileHint}
-  Adapte les matieres a la phase indiquee.
 RÉPONDS UNIQUEMENT avec ce JSON valide, rien d'autre :
-{"jours":[{"date":"DD/MM","dateISO":"YYYY-MM-DD","jour":"Lundi","sessions":[{"matiere":"Mathématiques","chapitre":"Pythagore & Thalès","duree":"20 min","exercice":"Quiz QCM"}]}]}`;
+${jsonExample}`;
 };
 const buildSvgPrompt=q=>`SVG simple (viewBox="0 0 220 180") pour: "${q}". stroke="#3B82F6" fill="none" strokeWidth="2", labels fill="#1E3A5F" fontSize="12". SVG uniquement.`;
 
