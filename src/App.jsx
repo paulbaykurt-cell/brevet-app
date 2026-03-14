@@ -47,8 +47,29 @@ const LOADING_MESSAGES = [
 
 // ── STATS ─────────────────────────────────────────────────────────────────────
 const EMPTY = {streak:0,lastSession:null,xp:0,totalSessions:0,bestScore:0,badges:[],subjectXP:{},weakChapters:{},sessionHistory:[],dailyGoal:2,todaySessions:0,lastGoalDate:null};
-function getStats(){try{const d=localStorage.getItem("brevet_v3");return d?{...EMPTY,...JSON.parse(d)}:{...EMPTY};}catch{return {...EMPTY};}}
-function saveStats(s){try{localStorage.setItem("brevet_v3",JSON.stringify(s));}catch{}}
+function saveStats(s){
+  try{
+    localStorage.setItem("brevet_v3",JSON.stringify(s));
+    // Backup auto dans sessionStorage en cas de corruption localStorage
+    sessionStorage.setItem("brevet_v3_backup",JSON.stringify(s));
+  }catch(e){
+    // Si localStorage plein, essayer de nettoyer les questions vues
+    try{
+      Object.keys(localStorage).filter(k=>k.startsWith("brevet_seen_")).forEach(k=>localStorage.removeItem(k));
+      localStorage.setItem("brevet_v3",JSON.stringify(s));
+    }catch{}
+  }
+}
+function getStats(){
+  try{
+    const d=localStorage.getItem("brevet_v3");
+    if(d)return{...EMPTY,...JSON.parse(d)};
+    // Essayer de récupérer depuis le backup sessionStorage
+    const backup=sessionStorage.getItem("brevet_v3_backup");
+    if(backup)return{...EMPTY,...JSON.parse(backup)};
+    return{...EMPTY};
+  }catch{return{...EMPTY};}
+}
 
 function updateStreak(s){
   const today=new Date().toISOString().split("T")[0];
@@ -88,8 +109,105 @@ function getUrgentChapters(s){
     .sort((a,b)=>b.n-a.n).slice(0,3);
 }
 
+function exportStats(){
+  try{
+    const stats=getStats();
+    const planning=loadPlanning();
+    const seen={};
+    Object.keys(localStorage).filter(k=>k.startsWith("brevet_seen_")).forEach(k=>{
+      try{seen[k]=JSON.parse(localStorage.getItem(k));}catch{}
+    });
+    const backup={stats,planning,seen,exportedAt:new Date().toISOString(),version:"v3"};
+    const blob=new Blob([JSON.stringify(backup,null,2)],{type:"application/json"});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement("a");
+    a.href=url;a.download=`brevet-backup-${new Date().toLocaleDateString("fr-FR").replace(/\//g,"-")}.json`;
+    a.click();URL.revokeObjectURL(url);
+    return true;
+  }catch{return false;}
+}
+
+function importStats(file,onSuccess,onError){
+  const reader=new FileReader();
+  reader.onload=e=>{
+    try{
+      const data=JSON.parse(e.target.result);
+      if(!data.stats)throw new Error("Format invalide");
+      saveStats({...EMPTY,...data.stats});
+      if(data.planning)savePlanning(data.planning.planning,data.planning.brevetDate);
+      if(data.seen)Object.entries(data.seen).forEach(([k,v])=>{try{localStorage.setItem(k,JSON.stringify(v));}catch{}});
+      onSuccess();
+    }catch{onError();}
+  };
+  reader.readAsText(file);
+}
+
+function BackupPanel({stats,onStatsRefresh}){
+  const[importing,setImporting]=useState(false);
+  const[msg,setMsg]=useState(null);
+  const fileRef=useRef(null);
+
+  const handleExport=()=>{
+    const ok=exportStats();
+    setMsg(ok?{type:"ok",text:"✅ Backup téléchargé ! Garde ce fichier en sécurité."}:{type:"err",text:"❌ Erreur lors de l'export."});
+    setTimeout(()=>setMsg(null),4000);
+  };
+  const handleImport=e=>{
+    const file=e.target.files?.[0];
+    if(!file)return;
+    setImporting(true);
+    importStats(file,()=>{setImporting(false);setMsg({type:"ok",text:"✅ Progression restaurée !"});onStatsRefresh();setTimeout(()=>setMsg(null),4000);},()=>{setImporting(false);setMsg({type:"err",text:"❌ Fichier invalide. Utilise un backup exporté depuis l'app."});});
+  };
+
+  const seenKeys=Object.keys(localStorage).filter(k=>k.startsWith("brevet_seen_")).length;
+
+  return(
+    <div style={{background:"var(--surface)",border:"1.5px solid var(--border)",borderRadius:16,padding:16,marginBottom:12,boxShadow:"0 3px 0 var(--border2)"}}>
+      <div className="section-title" style={{marginBottom:10}}>💾 Sauvegarde & Restauration</div>
+      <p style={{fontSize:12,color:"var(--muted)",marginBottom:14,lineHeight:1.6}}>
+        Tes stats sont sauvegardées sur cet appareil. Pour ne pas les perdre si tu changes de navigateur ou d'appareil, exporte une sauvegarde.
+      </p>
+      <div style={{background:"#EFF6FF",border:"1px solid #BAD6F5",borderRadius:10,padding:"10px 12px",marginBottom:12,fontSize:12,color:"#1E3A8A"}}>
+        📊 <strong>{stats.totalSessions}</strong> sessions · <strong>{stats.xp}</strong> XP · <strong>{seenKeys}</strong> matières avec historique de questions
+      </div>
+      {msg&&<div style={{padding:"9px 12px",borderRadius:10,marginBottom:10,fontSize:13,fontWeight:600,background:msg.type==="ok"?"#F0FDF4":"#FEF2F2",color:msg.type==="ok"?"#065F46":"#991B1B",border:`1.5px solid ${msg.type==="ok"?"#A7F3D0":"#FECACA"}`}}>{msg.text}</div>}
+      <button className="btn-cta" onClick={handleExport} style={{marginBottom:10}}>
+        ⬇️ Exporter ma progression (backup JSON)
+      </button>
+      <button className="btn-secondary" onClick={()=>fileRef.current?.click()} disabled={importing}>
+        {importing?"Import en cours…":"⬆️ Importer une sauvegarde"}
+      </button>
+      <input ref={fileRef} type="file" accept=".json" style={{display:"none"}} onChange={handleImport}/>
+      <div style={{marginTop:12,padding:"8px 12px",background:"#FFFBEB",borderRadius:8,fontSize:11,color:"#92400E",lineHeight:1.5}}>
+        ⚠️ L'import remplace toute ta progression actuelle. Exporte d'abord si tu veux garder les deux.
+      </div>
+      {seenKeys>0&&(
+        <button className="btn-secondary" style={{marginTop:10,fontSize:12,color:"#DC2626",borderColor:"#FECACA"}} onClick={()=>{if(window.confirm("Effacer l'historique des questions vues ? Les prochains quiz repartiront de zéro en termes de variété.")){Object.keys(localStorage).filter(k=>k.startsWith("brevet_seen_")).forEach(k=>localStorage.removeItem(k));setMsg({type:"ok",text:"✅ Historique des questions effacé !"});setTimeout(()=>setMsg(null),3000);}}}>
+          🔄 Réinitialiser l'historique des questions
+        </button>
+      )}
+    </div>
+  );
+}
+
 function savePlanning(p,d){try{localStorage.setItem("brevet_plan",JSON.stringify({planning:p,brevetDate:d}));}catch{}}
 function loadPlanning(){try{const d=localStorage.getItem("brevet_plan");return d?JSON.parse(d):null;}catch{return null;}}
+
+// ── QUESTION HISTORY (évite les répétitions) ──────────────────────────────────
+function getSeenQuestions(subjectId){
+  try{const d=localStorage.getItem(`brevet_seen_${subjectId}`);return d?JSON.parse(d):[];}catch{return[];}
+}
+function addSeenQuestions(subjectId,questions){
+  try{
+    const prev=getSeenQuestions(subjectId);
+    const newQ=questions.map(q=>q.question||q).filter(Boolean);
+    const merged=[...newQ,...prev].slice(0,40); // garde les 40 dernières
+    localStorage.setItem(`brevet_seen_${subjectId}`,JSON.stringify(merged));
+  }catch{}
+}
+function clearSeenQuestions(subjectId){
+  try{localStorage.removeItem(`brevet_seen_${subjectId}`);}catch{}
+}
 
 // ── SOUND (Web Audio API) ─────────────────────────────────────────────────────
 function playSound(type){
@@ -127,15 +245,15 @@ async function callClaudeText(prompt,system){
 }
 
 // ── PROMPTS ───────────────────────────────────────────────────────────────────
-const buildQuizPrompt=(subject,chapter,weak=[],count=5)=>{
+const buildQuizPrompt=(subject,chapter,weak=[],count=5,seen=[])=>{
   const seed=Math.floor(Math.random()*99999);
   const hint=weak.length?` Priorité sur ces chapitres fragiles: ${weak.join(", ")}.`:"";
-  return`[Seed:${seed}] Génère exactement ${count} QCM variés sur "${subject}"${chapter?` chapitre "${chapter}"`:" (sujets les plus probables au brevet)"}.${hint}
-Programme officiel 3ème. Varie les formulations, niveaux, angles d'approche.
+  const avoid=seen.length?`\nÉVITE ABSOLUMENT ces questions déjà posées:\n${seen.slice(0,15).map((q,i)=>`${i+1}. "${q}"`).join("\n")}`:"";
+  return`[Seed:${seed}] Génère exactement ${count} QCM NOUVEAUX et variés sur "${subject}"${chapter?` chapitre "${chapter}"`:" (sujets les plus probables au brevet)"}.${hint}${avoid}
+Programme officiel 3ème. Varie les formulations, niveaux, angles d'approche. Ne répète jamais les questions déjà posées.
 JSON:{"questions":[{"question":"...","chapter":"...","choices":["A. ...","B. ...","C. ...","D. ..."],"answer":"A","explanation":"..."}]}`;
 };
-const buildMixPrompt=()=>{const seed=Math.floor(Math.random()*99999);return`[Seed:${seed}] Génère 5 QCM mélangés et variés pour le brevet. Matières: ${MIX_LIST}.
-JSON:{"questions":[{"question":"...","matiere":"...","chapter":"...","choices":["A. ...","B. ...","C. ...","D. ..."],"answer":"A","explanation":"..."}]}`;};
+const buildMixPrompt=(seen=[])=>{const seed=Math.floor(Math.random()*99999);const avoid=seen.length?`\nÉVITE ces questions déjà posées:\n${seen.slice(0,10).map((q,i)=>`${i+1}. "${q}"`).join("\n")}`:"";return`[Seed:${seed}] Génère 5 QCM mélangés et variés pour le brevet. Matières: .${avoid}\nJSON:{"questions":[{"question":"...","matiere":"...","chapter":"...","choices":["A. ...","B. ...","C. ...","D. ..."],"answer":"A","explanation":"..."}]}`;};
 const buildMixLongPrompt=()=>`Génère 1 question ouverte type brevet. Matières: ${MIX_LIST}.
 JSON:{"question":"...","matiere":"...","context":"...","correction":"...","points_cles":["...","...","..."]}`;
 const buildLongPrompt=(subject,chapter)=>{
@@ -840,8 +958,13 @@ function StoriesMode({subject,chapter,isMix,onBack,onDone}){
   const[score,setScore]=useState(0);
   const touchX=useRef(null);
   useEffect(()=>{
-    const prompt=isMix?buildMixPrompt():buildQuizPrompt(subject.label,chapter);
-    withMinDelay(callClaude(prompt)).then(d=>{setQuestions(d.questions||[]);setState("quiz");}).catch(()=>setState("error"));
+    const seen=isMix?getSeenQuestions("mix"):getSeenQuestions(subject?.id||"");
+    const prompt=isMix?buildMixPrompt(seen):buildQuizPrompt(subject.label,chapter,[],5,seen);
+    withMinDelay(callClaude(prompt)).then(d=>{
+      const qs=d.questions||[];
+      addSeenQuestions(isMix?"mix":subject?.id||"",qs);
+      setQuestions(qs);setState("quiz");
+    }).catch(()=>setState("error"));
   },[]);
   useEffect(()=>{
     const onKey=e=>{if(e.key==="ArrowRight"&&selected!==null)next();};
@@ -901,12 +1024,19 @@ function QuizMode({subject,chapter,isMix,count,onBack,onStatsUpdate,showFiche=fa
   const[loadingExplain,setLoadingExplain]=useState(false);
   const nextRef=useRef(null);
   const isGeo=subject?.id==="maths"&&GEO_CHAPTERS.includes(chapter);
-  const weak=getWeak(getStats(),subject?.id||"");
   const qCount=count||5;
+  const weak=getWeak(getStats(),subject?.id||"");
+  const seen=isMix?getSeenQuestions("mix"):getSeenQuestions(subject?.id||"");
 
   const loadQuestions=useCallback(()=>{
-    const prompt=isMix?buildMixPrompt():buildQuizPrompt(subject.label,chapter,weak,qCount);
-    withMinDelay(callClaude(prompt)).then(d=>{setQuestions(d.questions||[]);setPhase("question");}).catch(()=>setPhase("error"));
+    const prompt=isMix?buildMixPrompt(seen):buildQuizPrompt(subject.label,chapter,weak,qCount,seen);
+    withMinDelay(callClaude(prompt)).then(d=>{
+      const qs=d.questions||[];
+      setQuestions(qs);
+      // Sauvegarder les questions vues
+      addSeenQuestions(isMix?"mix":subject?.id||"",qs);
+      setPhase("question");
+    }).catch(()=>setPhase("error"));
   },[]);
 
   useEffect(()=>{if(phase==="loading")loadQuestions();},[phase]);
@@ -1442,6 +1572,8 @@ export default function App(){
                       </div>
                     ))}
                   </div>
+                  <div className="divider"/>
+                  <BackupPanel stats={stats} onStatsRefresh={()=>setStats(getStats())}/>
                   <div className="divider"/>
                   <div className="section-title">Réglages</div>
                   <label className="sound-toggle" style={{marginBottom:8}}>
