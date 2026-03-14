@@ -194,8 +194,20 @@ function BackupPanel({stats,onStatsRefresh}){
   );
 }
 
-function savePlanning(p,d){try{localStorage.setItem("brevet_plan",JSON.stringify({planning:p,brevetDate:d}));}catch{}}
-function loadPlanning(){try{const d=localStorage.getItem("brevet_plan");return d?JSON.parse(d):null;}catch{return null;}}
+function savePlanning(p,brevetDate,daysLeft){
+  try{localStorage.setItem("brevet_plan",JSON.stringify({planning:p,brevetDate,daysLeft,savedAt:new Date().toISOString()}));}catch{}
+}
+function loadPlanning(){
+  try{const d=localStorage.getItem("brevet_plan");return d?JSON.parse(d):null;}catch{return null;}
+}
+function addWeekToPlanning(newWeek){
+  try{
+    const saved=loadPlanning();
+    if(!saved)return;
+    const merged=[...(saved.planning||[]),...newWeek];
+    savePlanning(merged,saved.brevetDate,saved.daysLeft);
+  }catch{}
+}
 
 // ── QUESTION HISTORY (évite les répétitions) ──────────────────────────────────
 function getSeenQuestions(subjectId){
@@ -347,7 +359,18 @@ async function callClaude(prompt,system,maxTokens=2000){
       messages:[{role:"user",content:prompt}]})});
   const data=await r.json();
   if(data.error)throw new Error(data.error.message||"Erreur API");
-  return JSON.parse((data.content?.[0]?.text||"").replace(/```json|```/g,"").trim());
+  const raw=(data.content?.[0]?.text||"");
+  // Nettoyage robuste : retire les backticks markdown
+  let cleaned=raw.replace(/```json\s*/gi,"").replace(/```\s*/g,"").trim();
+  // Si ça commence pas par { ou [, extraire le premier objet JSON trouvé
+  if(!cleaned.startsWith("{")&&!cleaned.startsWith("[")){
+    const match=cleaned.match(/(\{[\s\S]*\}|\[[\s\S]*\])/);
+    if(match)cleaned=match[1];
+  }
+  // Couper tout ce qui vient après le dernier } ou ]
+  const lastBrace=Math.max(cleaned.lastIndexOf("}"),cleaned.lastIndexOf("]"));
+  if(lastBrace>0)cleaned=cleaned.substring(0,lastBrace+1);
+  return JSON.parse(cleaned);
 }
 async function callClaudeText(prompt,system){
   const r=await fetch("/api/claude",{method:"POST",headers:{"Content-Type":"application/json"},
@@ -513,17 +536,17 @@ const buildErrorPrompt=(q,w,c,subjectId)=>{
 Explique en 2-3 phrases simples et directes pourquoi c'est faux — style détendu, pas trop soutenu.${addEtym?"\nSi un mot clé de la question a une étymologie intéressante (grec, latin…), ajoute UNE phrase courte du style : \"Au fait : 'cellule' vient du latin cellula (petite chambre).\" Sinon laisse le champ vide.":""}
 JSON:{"explication_erreur":"...","etymologie":"${addEtym?"si pertinent, sinon vide":""}"}`;
 };
-const buildPlanningPrompt=(dateStr,daysLeft)=>{
+const buildPlanningPrompt=(dateStr,daysLeft,fromDateISO)=>{
   const phase=daysLeft>60?"FONDATIONS":daysLeft>21?"CIBLAGE":daysLeft>7?"INTENSIF":"FINAL";
-  const nbJours=Math.min(daysLeft,30); // max 30 jours affichés
-  return`Tu génères un planning de révision pour le brevet 3ème.
+  const from=fromDateISO||new Date().toISOString().split("T")[0];
+  return`Tu génères UN PLANNING DE RÉVISION pour le brevet 3ème.
 Brevet le : ${dateStr}. Jours restants : ${daysLeft}. Phase : ${phase}.
-Génère exactement ${nbJours} jours de planning à partir d'aujourd'hui.
+Génère EXACTEMENT 7 jours à partir du ${from} (inclus).
 Matières : Mathématiques, Français, Histoire-Géo, SVT, Physique-Chimie, EMC, Technologie.
-Weekends : max 1-2 sessions. Jours de semaine : 2-3 sessions de 20 min.
-IMPORTANT : réponds UNIQUEMENT avec ce JSON valide, sans aucun texte avant ou après :
-{"jours":[{"date":"DD/MM","dateISO":"YYYY-MM-DD","jour":"Lundi","sessions":[{"matiere":"Mathématiques","chapitre":"Pythagore & Thalès","duree":"20 min","exercice":"Quiz QCM"}]}]}
-Génère au moins ${Math.min(nbJours,7)} jours avec des sessions.`;
+Weekends : max 1-2 sessions légères. Jours de semaine : 2-3 sessions de 20 min chacune.
+Adapte les matières à la phase : ${phase==="FONDATIONS"?"révisions larges":phase==="CIBLAGE"?"chapitres fréquents au brevet":phase==="INTENSIF"?"sujets les plus probables":phase==="FINAL"?"fiches synthèse uniquement"}.
+RÉPONDS UNIQUEMENT avec ce JSON valide, rien d'autre :
+{"jours":[{"date":"DD/MM","dateISO":"YYYY-MM-DD","jour":"Lundi","sessions":[{"matiere":"Mathématiques","chapitre":"Pythagore & Thalès","duree":"20 min","exercice":"Quiz QCM"}]}]}`;
 };
 const buildSvgPrompt=q=>`SVG simple (viewBox="0 0 220 180") pour: "${q}". stroke="#3B82F6" fill="none" strokeWidth="2", labels fill="#1E3A5F" fontSize="12". SVG uniquement.`;
 
@@ -1983,41 +2006,91 @@ function PlanningScreen({onBack,onStartSession,onPlanningUpdate}){
   const saved=loadPlanning();
   const savedPlanning=saved?.planning;
   const hasValidPlanning=Array.isArray(savedPlanning)&&savedPlanning.length>0;
+
   const[date,setDate]=useState(saved?.brevetDate||"");
-  const[weeks,setWeeks]=useState(8);
+  const[weeks,setWeeks]=useState(saved?.daysLeft?Math.ceil(saved.daysLeft/7):8);
   const[useWeeks,setUseWeeks]=useState(!saved?.brevetDate);
   const[state,setState]=useState(hasValidPlanning?"done":"form");
-  const[planning,setPlanning]=useState(hasValidPlanning?savedPlanning:null);
+  const[planning,setPlanning]=useState(hasValidPlanning?savedPlanning:[]);
   const[restDays,setRestDays]=useState([]);
+  const[loadingWeek,setLoadingWeek]=useState(false);
+
+  // Métadonnées brevet
+  const[brevetDateStr,setBrevetDateStr]=useState(saved?.brevetDate||"");
+  const[daysLeftRef,setDaysLeftRef]=useState(saved?.daysLeft||56);
 
   const generate=async()=>{
     let dateStr,daysLeft;
-    if(useWeeks){daysLeft=weeks*7;const d=new Date(Date.now()+daysLeft*86400000);dateStr=d.toLocaleDateString("fr-FR",{day:"numeric",month:"long",year:"numeric"});}
-    else{const obj=new Date(date);daysLeft=Math.ceil((obj-new Date())/86400000);dateStr=obj.toLocaleDateString("fr-FR",{day:"numeric",month:"long",year:"numeric"});}
+    if(useWeeks){
+      daysLeft=weeks*7;
+      const d=new Date(Date.now()+daysLeft*86400000);
+      dateStr=d.toLocaleDateString("fr-FR",{day:"numeric",month:"long",year:"numeric"});
+    } else {
+      const obj=new Date(date);
+      daysLeft=Math.ceil((obj-new Date())/86400000);
+      dateStr=obj.toLocaleDateString("fr-FR",{day:"numeric",month:"long",year:"numeric"});
+    }
+    setBrevetDateStr(dateStr);
+    setDaysLeftRef(daysLeft);
     setState("loading");
     try{
-      const d=await withMinDelay(callClaude(buildPlanningPrompt(dateStr,daysLeft),null,3000),600);
-      const j=d.jours||d.planning||d.days||[];
+      const fromDate=new Date().toISOString().split("T")[0];
+      const d=await withMinDelay(callClaude(buildPlanningPrompt(dateStr,daysLeft,fromDate),null,2000),600);
+      const j=d.jours||d.planning||d.days||d.schedule||Object.values(d)[0]||[];
       if(!Array.isArray(j)||j.length===0)throw new Error("Planning vide");
       setPlanning(j);
-      savePlanning(j,date||"");
+      savePlanning(j,date||"",daysLeft);
       setState("done");
       onPlanningUpdate&&onPlanningUpdate();
     }
     catch{setState("error");}
   };
 
-  if(state==="loading")return<><button className="btn-ghost" onClick={onBack}>← Retour</button><Spinner text="Génération du planning…"/></>;
-  if(state==="error")return<><button className="btn-ghost" onClick={onBack}>← Retour</button><p className="err">Erreur. Réessaie !</p></>;
+  const loadNextWeek=async()=>{
+    // Trouver la date du dernier jour du planning actuel
+    const last=planning[planning.length-1];
+    if(!last?.dateISO)return;
+    // Partir du lendemain du dernier jour
+    const nextDay=new Date(last.dateISO);
+    nextDay.setDate(nextDay.getDate()+1);
+    const fromDate=nextDay.toISOString().split("T")[0];
+    // Recalculer les jours restants jusqu'au brevet
+    const daysLeft=daysLeftRef-planning.length;
+    if(daysLeft<=0)return;
+    setLoadingWeek(true);
+    try{
+      const d=await callClaude(buildPlanningPrompt(brevetDateStr,daysLeft,fromDate),null,2000);
+      const j=d.jours||d.planning||d.days||d.schedule||Object.values(d)[0]||[];
+      if(!Array.isArray(j)||j.length===0)throw new Error("Semaine vide");
+      const merged=[...planning,...j];
+      setPlanning(merged);
+      savePlanning(merged,date||"",daysLeftRef);
+      onPlanningUpdate&&onPlanningUpdate();
+    }
+    catch{}
+    setLoadingWeek(false);
+  };
+
+  if(state==="loading")return<><button className="btn-ghost" onClick={onBack}>← Retour</button><Spinner text="Génération de la première semaine…"/></>;
+  if(state==="error")return(
+    <><button className="btn-ghost" onClick={onBack}>← Retour</button>
+    <div style={{background:"#FEF2F2",border:"1.5px solid #FECACA",borderRadius:14,padding:16,textAlign:"center"}}>
+      <div style={{fontSize:24,marginBottom:8}}>😕</div>
+      <div style={{fontFamily:"var(--font-d)",fontSize:15,fontWeight:800,color:"#991B1B",marginBottom:6}}>Oups, le planning n'a pas pu être généré</div>
+      <div style={{fontSize:13,color:"#7F1D1D",marginBottom:14}}>Réessaie — ça arrive parfois !</div>
+      <button className="btn-cta" onClick={()=>setState("form")}>↩ Réessayer</button>
+    </div></>
+  );
 
   return(
     <div>
       <button className="btn-ghost" onClick={onBack}>← Retour</button>
+
       {state==="form"&&(
         <div className="planning-header">
           <div style={{fontSize:44,marginBottom:10}}>📅</div>
           <div className="planning-title">Mon Planning Brevet</div>
-          <div className="planning-desc">Entre la date du brevet OU le nombre de semaines restantes.</div>
+          <div className="planning-desc">Entre la date du brevet ou le nombre de semaines restantes. Le planning se génère semaine par semaine.</div>
           <div style={{display:"flex",gap:8,marginBottom:14}}>
             <button className={`count-btn${!useWeeks?" selected":""}`} onClick={()=>setUseWeeks(false)}>📅 Date exacte</button>
             <button className={`count-btn${useWeeks?" selected":""}`} onClick={()=>setUseWeeks(true)}>⏳ En semaines</button>
@@ -2031,24 +2104,20 @@ function PlanningScreen({onBack,onStartSession,onPlanningUpdate}){
               <span className="weeks-label">{weeks} sem.</span>
             </div>
           )}
-          <button className="btn-cta" disabled={!useWeeks&&!date} onClick={generate}>Générer mon planning →</button>
+          <button className="btn-cta" disabled={!useWeeks&&!date} onClick={()=>{playCTA();generate();}}>Générer mon planning →</button>
         </div>
       )}
-      {state==="done"&&(!planning||planning.length===0)&&(
-        <div style={{background:"#FEF2F2",border:"1.5px solid #FECACA",borderRadius:14,padding:16,textAlign:"center"}}>
-          <div style={{fontSize:24,marginBottom:8}}>😕</div>
-          <div style={{fontFamily:"var(--font-d)",fontSize:15,fontWeight:800,color:"#991B1B",marginBottom:6}}>Le planning n'a pas pu être chargé</div>
-          <div style={{fontSize:13,color:"#7F1D1D",marginBottom:14}}>L'IA n'a pas retourné de données valides. Réessaie !</div>
-          <button className="btn-cta" onClick={()=>setState("form")}>↩ Réessayer</button>
-        </div>
-      )}
-      {state==="done"&&planning&&planning.length>0&&(
+
+      {state==="done"&&(
         <>
           <div className="planning-header">
             <div className="planning-title">📅 Planning Brevet</div>
-            <div className="planning-desc">Clique sur une session pour la faire directement !</div>
-            <button className="btn-secondary" onClick={()=>setState("form")}>↩ Recréer</button>
+            <div className="planning-desc">
+              {planning.length} jours générés · Clique sur une session pour la faire directement !
+            </div>
+            <button className="btn-secondary" onClick={()=>{setPlanning([]);setState("form");}}>↩ Recréer</button>
           </div>
+
           {planning.map((jour,i)=>{
             const isRest=restDays.includes(jour.dateISO);
             const isToday=jour.dateISO===new Date().toISOString().split("T")[0];
@@ -2063,13 +2132,18 @@ function PlanningScreen({onBack,onStartSession,onPlanningUpdate}){
                     </button>
                   </div>
                 </div>
-                {isRest?<div style={{padding:"10px 14px",fontSize:12,color:"#5A85AA",fontStyle:"italic"}}>Jour de repos 😴</div>:(
+                {isRest?(
+                  <div style={{padding:"10px 14px",fontSize:12,color:"#5A85AA",fontStyle:"italic"}}>Jour de repos 😴</div>
+                ):(
                   <div className="planning-sessions-list">
                     {(jour.sessions||[]).map((s,j)=>(
                       <div key={j} className="planning-session" onClick={()=>onStartSession(s)}>
                         <div className="session-mat" style={{color:SUBJECT_COLORS[s.matiere]||"#2563EB"}}>{s.matiere}</div>
                         <div className="session-info"><div className="session-chap">{s.chapitre}</div><div className="session-exo">{s.exercice}</div></div>
-                        <div style={{display:"flex",alignItems:"center",gap:4}}><div className="session-dur">⏱ {s.duree}</div><span style={{fontSize:13}}>{s.exercice?.toLowerCase().includes("long")?"✍️":"⚡"}</span></div>
+                        <div style={{display:"flex",alignItems:"center",gap:4}}>
+                          <div className="session-dur">⏱ {s.duree}</div>
+                          <span style={{fontSize:13}}>{s.exercice?.toLowerCase().includes("long")?"✍️":"⚡"}</span>
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -2077,6 +2151,24 @@ function PlanningScreen({onBack,onStartSession,onPlanningUpdate}){
               </div>
             );
           })}
+
+          {/* Bouton "Semaine suivante" */}
+          {daysLeftRef>planning.length&&(
+            <div style={{textAlign:"center",padding:"10px 0 6px"}}>
+              {loadingWeek?(
+                <Spinner text="Génération de la semaine suivante…"/>
+              ):(
+                <button className="btn-secondary" style={{maxWidth:300,margin:"0 auto"}} onClick={loadNextWeek}>
+                  📅 Charger la semaine suivante →
+                </button>
+              )}
+            </div>
+          )}
+          {daysLeftRef<=planning.length&&(
+            <div style={{textAlign:"center",padding:"12px",fontSize:13,color:"#059669",fontWeight:600}}>
+              🎉 Tout le planning jusqu'au brevet est généré !
+            </div>
+          )}
         </>
       )}
     </div>
