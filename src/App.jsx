@@ -141,7 +141,10 @@ function getDifficulty(){
 function saveDifficulty(id){
   try{ localStorage.setItem("brevet_difficulty",id); }catch{}
 }
-function getDifficultyPrompt(){
+function getDifficultyMultiplier(){
+  const d=getDifficulty();
+  return d==="assez_bien"?0.8:d==="bien"?1:d==="tres_bien"?1.4:d==="felicitations"?2:1;
+}
   const d=DIFFICULTY_LEVELS.find(l=>l.id===getDifficulty())||DIFFICULTY_LEVELS[1];
   return d.prompt;
 }
@@ -412,7 +415,43 @@ function BackupPanel({stats,onStatsRefresh}){
   );
 }
 
-function savePlanning(p,brevetDate,daysLeft){
+function cleanOldSeenQuestions(){
+  try{
+    const cutoff=Date.now()-30*24*60*60*1000;
+    const stored=localStorage.getItem("brevet_seen_meta");
+    const meta=stored?JSON.parse(stored):{};
+    Object.keys(localStorage).filter(k=>k.startsWith("brevet_seen_")).forEach(k=>{
+      const subId=k.replace("brevet_seen_","");
+      const lastUsed=meta[subId]||0;
+      if(Date.now()-lastUsed>30*24*60*60*1000){
+        localStorage.removeItem(k);
+        delete meta[subId];
+      }
+    });
+    localStorage.setItem("brevet_seen_meta",JSON.stringify(meta));
+  }catch{}
+}
+function touchSeenMeta(subjectId){
+  try{
+    const stored=localStorage.getItem("brevet_seen_meta");
+    const meta=stored?JSON.parse(stored):{};
+    meta[subjectId]=Date.now();
+    localStorage.setItem("brevet_seen_meta",JSON.stringify(meta));
+  }catch{}
+}
+
+// Déverrouillage audio iOS — doit être appelé sur le premier geste utilisateur
+let audioUnlocked=false;
+function unlockAudio(){
+  if(audioUnlocked)return;
+  try{
+    const ctx=new(window.AudioContext||window.webkitAudioContext)();
+    const buf=ctx.createBuffer(1,1,22050);
+    const src=ctx.createBufferSource();
+    src.buffer=buf;src.connect(ctx.destination);src.start(0);
+    ctx.resume().then(()=>{audioUnlocked=true;});
+  }catch{}
+}
   try{localStorage.setItem("brevet_plan",JSON.stringify({planning:p,brevetDate,daysLeft,savedAt:new Date().toISOString()}));}catch{}
 }
 function loadPlanning(){
@@ -435,8 +474,9 @@ function addSeenQuestions(subjectId,questions){
   try{
     const prev=getSeenQuestions(subjectId);
     const newQ=questions.map(q=>q.question||q).filter(Boolean);
-    const merged=[...newQ,...prev].slice(0,40); // garde les 40 dernières
+    const merged=[...newQ,...prev].slice(0,40);
     localStorage.setItem(`brevet_seen_${subjectId}`,JSON.stringify(merged));
+    touchSeenMeta(subjectId);
   }catch{}
 }
 function clearSeenQuestions(subjectId){
@@ -570,25 +610,31 @@ function playSound(type){
 
 // ── API ───────────────────────────────────────────────────────────────────────
 async function withMinDelay(promise,ms=700){const[r]=await Promise.all([promise,new Promise(res=>setTimeout(res,ms))]);return r;}
-async function callClaude(prompt,system,maxTokens=2000){
-  const r=await fetch("/api/claude",{method:"POST",headers:{"Content-Type":"application/json"},
-    body:JSON.stringify({model:"claude-haiku-4-5-20251001",max_tokens:maxTokens,
-      system:system||"Tu es un professeur bienveillant pour réviser le brevet 3ème. Réponds UNIQUEMENT en JSON valide sans backticks.",
-      messages:[{role:"user",content:prompt}]})});
-  const data=await r.json();
-  if(data.error)throw new Error(data.error.message||"Erreur API");
-  const raw=(data.content?.[0]?.text||"");
-  // Nettoyage robuste : retire les backticks markdown
-  let cleaned=raw.replace(/```json\s*/gi,"").replace(/```\s*/g,"").trim();
-  // Si ça commence pas par { ou [, extraire le premier objet JSON trouvé
-  if(!cleaned.startsWith("{")&&!cleaned.startsWith("[")){
-    const match=cleaned.match(/(\{[\s\S]*\}|\[[\s\S]*\])/);
-    if(match)cleaned=match[1];
+const SYSTEM_PROMPT = `Tu es un professeur expert du Brevet des collèges français (DNB), spécialisé dans la préparation des élèves de 3ème. Tes questions sont précises, pédagogiques, et strictement conformes au programme officiel du cycle 4. Tu varies toujours les formulations, les angles d'approche et les niveaux de difficulté. Tu génères UNIQUEMENT du JSON valide, sans backticks, sans texte avant ou après.`;
+
+async function callClaude(prompt,system,maxTokens=2000,retries=3){
+  const sys=system||SYSTEM_PROMPT;
+  for(let attempt=0;attempt<retries;attempt++){
+    try{
+      const r=await fetch("/api/claude",{method:"POST",headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({model:"claude-haiku-4-5-20251001",max_tokens:maxTokens,
+          system:sys,messages:[{role:"user",content:prompt}]})});
+      const data=await r.json();
+      if(data.error)throw new Error(data.error.message||"Erreur API");
+      const raw=(data.content?.[0]?.text||"");
+      let cleaned=raw.replace(/```json\s*/gi,"").replace(/```\s*/g,"").trim();
+      if(!cleaned.startsWith("{")&&!cleaned.startsWith("[")){
+        const match=cleaned.match(/(\{[\s\S]*\}|\[[\s\S]*\])/);
+        if(match)cleaned=match[1];
+      }
+      const lastBrace=Math.max(cleaned.lastIndexOf("}"),cleaned.lastIndexOf("]"));
+      if(lastBrace>0)cleaned=cleaned.substring(0,lastBrace+1);
+      return JSON.parse(cleaned);
+    }catch(e){
+      if(attempt===retries-1)throw e;
+      await new Promise(res=>setTimeout(res,600*(attempt+1)));
+    }
   }
-  // Couper tout ce qui vient après le dernier } ou ]
-  const lastBrace=Math.max(cleaned.lastIndexOf("}"),cleaned.lastIndexOf("]"));
-  if(lastBrace>0)cleaned=cleaned.substring(0,lastBrace+1);
-  return JSON.parse(cleaned);
 }
 async function callClaudeText(prompt,system){
   const r=await fetch("/api/claude",{method:"POST",headers:{"Content-Type":"application/json"},
@@ -1152,6 +1198,13 @@ const css=`
   @keyframes fadeSlideIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
   .hint{text-align:center;font-size:12px;color:var(--muted);margin-top:6px;}
   .err{color:#DC2626;text-align:center;padding:40px 0;}
+  @media(max-width:600px){
+    .subject-card,.training-card,.mode-card,.choice-btn,.btn-cta,.btn-ghost{transition-duration:.1s!important;}
+    .subject-card:hover,.training-card:hover,.mode-card:hover{transform:none!important;}
+  }
+  @media(prefers-reduced-motion:reduce){
+    *{transition:none!important;animation:none!important;}
+  }
   .sound-toggle{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted);margin-bottom:12px;cursor:pointer;user-select:none;}
   .sound-toggle input{accent-color:#3B82F6;}
 `;
@@ -2059,7 +2112,7 @@ function QuizMode({subject,chapter,isMix,count,onBack,onStatsUpdate,showFiche=fa
 
   const handleNext=()=>{
     if(isLast){
-      const xpEarned=score*10+(score===questions.length?20:0);
+      const mult=getDifficultyMultiplier();const xpEarned=Math.round((score*10+(score===questions.length?20:0))*mult);
       let s=updateStreak(getStats());
       s.bestScore=Math.max(s.bestScore||0,score);
       s=addSession(s,isMix?"Mix":subject?.label,score,questions.length,"quiz");
@@ -2089,7 +2142,7 @@ function QuizMode({subject,chapter,isMix,count,onBack,onStatsUpdate,showFiche=fa
   const q=questions[idx];
   const isLast=idx===questions.length-1;
   const isWrong=selected&&!selected.startsWith(q.answer);
-  const xpEarned=score*10+(score===questions.length?20:0);
+  const mult=getDifficultyMultiplier();const xpEarned=Math.round((score*10+(score===questions.length?20:0))*mult);
   const scoreColor=score>=questions.length*.8?"#059669":score>=questions.length*.5?"#D97706":"#DC2626";
 
   if(phase==="done")return(
@@ -2098,7 +2151,7 @@ function QuizMode({subject,chapter,isMix,count,onBack,onStatsUpdate,showFiche=fa
       <div className="score-ring" style={{borderColor:scoreColor,color:scoreColor}}>{score}/{questions.length}</div>
       <div className="score-message">{score>=questions.length*.8?"🎉 Trop bien !":score>=questions.length*.5?"👍 Bien joué !":"💪 Accroche-toi, ça vient !"}</div>
       <div className="score-sub">{isMix?"🎲 Mix Brevet":`${subject?.icon} ${subject?.label}${chapter?` · ${chapter}`:""}`}</div>
-      <div className="xp-toast">+{xpEarned} XP gagnés !</div>
+      <div className="xp-toast">+{xpEarned} XP gagnés {getDifficultyMultiplier()>1?`(×${getDifficultyMultiplier()} ${DIFFICULTY_LEVELS.find(l=>l.id===getDifficulty())?.emoji})`:""}!</div>
       {score<questions.length*.5&&(
         <div className="encourage-card">
           💡 Score faible sur {isMix?"ce mix":chapter||subject?.label} — retravaille ce chapitre avec une <strong>Question Longue</strong> pour consolider les bases. Tu peux le faire !
@@ -2558,6 +2611,12 @@ export default function App(){
   useEffect(()=>{
     const saved=getSavedTheme();
     applyTheme(saved);
+    // Nettoyage localStorage questions vues > 30 jours
+    cleanOldSeenQuestions();
+    // Déverrouillage audio iOS au premier clic
+    const onFirstTouch=()=>{unlockAudio();document.removeEventListener("touchstart",onFirstTouch);document.removeEventListener("click",onFirstTouch);};
+    document.addEventListener("touchstart",onFirstTouch,{once:true});
+    document.addEventListener("click",onFirstTouch,{once:true});
     // Écouter les changements de mode clair/sombre du système
     const mq=window.matchMedia?.("(prefers-color-scheme: dark)");
     const onChange=()=>{ if(getSavedTheme()==="auto") applyTheme("auto"); };
