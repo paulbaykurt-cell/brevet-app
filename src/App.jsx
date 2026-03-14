@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 
 // ── DATA ──────────────────────────────────────────────────────────────────────
 const SUBJECTS = [
-  { id:"maths",    label:"Mathématiques",  icon:"📐", color:"#3B82F6", shadow:"#1D4ED8" },
+  { id:"maths",    label:"Mathématiques",  icon:"📐", color:"var(--accent)", shadow:"#1D4ED8" },
   { id:"francais", label:"Français",        icon:"📚", color:"#7C3AED", shadow:"#5B21B6" },
   { id:"histoire", label:"Histoire-Géo",    icon:"🌍", color:"#059669", shadow:"#065F46" },
   { id:"svt",      label:"SVT",             icon:"🔬", color:"#D97706", shadow:"#92400E" },
@@ -202,8 +202,8 @@ function getWeak(s,subId){return Object.entries(s.weakChapters?.[subId]||{}).sor
 function getLevel(xp){
   if(xp>=300)return{label:"Expert",color:"#059669",next:null,min:300};
   if(xp>=150)return{label:"Avancé",color:"#D97706",next:300,min:150};
-  if(xp>=50)return{label:"Intermédiaire",color:"#3B82F6",next:150,min:50};
-  return{label:"Débutant",color:"#6B7280",next:50,min:0};
+  if(xp>=50)return{label:"Intermédiaire",color:"var(--accent)",next:150,min:50};
+  return{label:"Débutant",color:"var(--muted)",next:50,min:0};
 }
 function addSession(s,subjectLabel,score,total,mode){
   const entry={date:new Date().toLocaleDateString("fr-FR"),subjectLabel,score,total,mode,xp:score*10};
@@ -357,7 +357,7 @@ function DifficultySelector(){
           );
         })}
       </div>
-      <div style={{marginTop:10,padding:"8px 12px",background:"#EFF6FF",borderRadius:8,fontSize:12,color:"#1E3A8A"}}>
+      <div style={{marginTop:10,padding:"8px 12px",background:"var(--bg2)",borderRadius:8,fontSize:12,color:"var(--text2)"}}>
         Niveau actuel : {cur.emoji} <strong>{cur.label}</strong> — {cur.desc}
       </div>
     </div>
@@ -389,7 +389,7 @@ function BackupPanel({stats,onStatsRefresh}){
       <p style={{fontSize:12,color:"var(--muted)",marginBottom:14,lineHeight:1.6}}>
         Tes stats sont sauvegardées sur cet appareil. Pour ne pas les perdre si tu changes de navigateur ou d'appareil, exporte une sauvegarde.
       </p>
-      <div style={{background:"#EFF6FF",border:"1px solid #BAD6F5",borderRadius:10,padding:"10px 12px",marginBottom:12,fontSize:12,color:"#1E3A8A"}}>
+      <div style={{background:"var(--bg2)",border:"1px solid var(--border)",borderRadius:10,padding:"10px 12px",marginBottom:12,fontSize:12,color:"var(--text2)"}}>
         📊 <strong>{stats.totalSessions}</strong> sessions · <strong>{stats.xp}</strong> XP · <strong>{seenKeys}</strong> matières avec historique de questions
       </div>
       {msg&&<div style={{padding:"9px 12px",borderRadius:10,marginBottom:10,fontSize:13,fontWeight:600,background:msg.type==="ok"?"#F0FDF4":"#FEF2F2",color:msg.type==="ok"?"#065F46":"#991B1B",border:`1.5px solid ${msg.type==="ok"?"#A7F3D0":"#FECACA"}`}}>{msg.text}</div>}
@@ -802,10 +802,13 @@ const css=`
     --font-b:-apple-system,"SF Pro Text","Segoe UI",system-ui,sans-serif;
     --bg:#EBF5FF;--bg2:#DBEAFE;--surface:#FFFFFF;--surface2:#F0F7FF;
     --border:#BAD6F5;--border2:#93C5E8;--text:#0C2340;--text2:#1E4976;--muted:#5A85AA;
+    --accent:#2563EB;--cta1:#3B82F6;--cta2:#1D4ED8;--cta-shadow:#1E40AF;--tab-active:#2563EB;
   }
-  body{font-family:var(--font-b);background:var(--bg);min-height:100vh;color:#0C2340;}
-  .app{min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:20px 14px 120px;}
-  .container{width:100%;max-width:680px;}
+  *{transition:background-color .25s,border-color .2s,color .2s;}
+  *::before,*::after{transition:none;}
+  body{font-family:var(--font-b);background:var(--bg);min-height:100vh;color:var(--text);transition:background .3s,color .3s;}
+  .app{min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:20px 14px 120px;background:var(--bg);}
+  .container{width:100%;max-width:680px;color:var(--text);}
 
   .header{text-align:center;margin-bottom:16px;}
   .badge-pill{display:inline-flex;align-items:center;gap:7px;background:#DBEAFE;border:1.5px solid #3B82F6;color:#1E3A8A;font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;padding:6px 16px;border-radius:999px;margin-bottom:12px;}
@@ -813,7 +816,7 @@ const css=`
   @keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(.8)}}
   .header h1{font-family:var(--font-d);font-size:clamp(24px,6vw,44px);font-weight:800;line-height:1.05;letter-spacing:-1.5px;margin-bottom:5px;}
   .h1-accent{color:#2563EB;}
-  .header p{color:#5A85AA;font-size:13px;}
+  .header p{color:var(--muted);font-size:13px;}
 
   /* Welcome back */
   .welcome-back{background:linear-gradient(135deg,#EFF6FF,#DBEAFE);border:1.5px solid #BAD6F5;border-radius:16px;padding:14px 16px;margin-bottom:14px;box-shadow:0 3px 0 #93C5E8;}
@@ -830,7 +833,7 @@ const css=`
   .daily-goal{background:var(--surface);border:1.5px solid var(--border);border-radius:14px;padding:12px 15px;margin-bottom:12px;box-shadow:0 3px 0 var(--border2);}
   .daily-goal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;}
   .daily-goal-title{font-size:11px;letter-spacing:2px;text-transform:uppercase;color:#2563EB;font-weight:700;}
-  .daily-goal-count{font-family:var(--font-d);font-size:13px;font-weight:800;color:#0C2340;}
+  .daily-goal-count{font-family:var(--font-d);font-size:13px;font-weight:800;color:var(--text);}
   .goal-bar{height:8px;background:var(--bg2);border-radius:999px;overflow:hidden;}
   .goal-fill{height:100%;background:linear-gradient(90deg,#10B981,#059669);border-radius:999px;transition:width .6s cubic-bezier(.34,1.56,.64,1);}
 
@@ -839,7 +842,7 @@ const css=`
   .dash-card{background:var(--surface);border:1.5px solid var(--border);border-radius:16px;padding:14px;box-shadow:0 3px 0 var(--border2);}
   .dash-full{grid-column:span 2;}
   .dash-label{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);font-weight:700;margin-bottom:5px;}
-  .dash-big{font-family:var(--font-d);font-size:30px;font-weight:800;color:#0C2340;line-height:1;}
+  .dash-big{font-family:var(--font-d);font-size:30px;font-weight:800;color:var(--text);line-height:1;}
   .dash-sub{font-size:12px;color:var(--muted);margin-top:3px;}
   .xp-bar{height:6px;background:var(--bg2);border-radius:999px;margin-top:8px;overflow:hidden;}
   .xp-fill{height:100%;background:linear-gradient(90deg,var(--cta1),var(--cta2));border-radius:999px;transition:width .6s;}
@@ -871,7 +874,7 @@ const css=`
   .subject-card:active{transform:translateY(3px) scale(.97)!important;box-shadow:0 1px 0 var(--border2)!important;}
   @media(max-width:520px){.subject-card{width:calc(50% - 6px);}}
   .subject-icon{font-size:28px;margin-bottom:7px;line-height:1;}
-  .subject-label{font-size:11px;font-weight:700;color:#1E4976;line-height:1.3;}
+  .subject-label{font-size:11px;font-weight:700;color:var(--text2);line-height:1.3;}
   .subject-lv{font-size:10px;font-weight:600;margin-top:4px;}
 
   /* Mix */
@@ -888,7 +891,7 @@ const css=`
   .training-card:hover{transform:translateY(-4px);box-shadow:0 9px 0 var(--border2);}
   .training-card:active{transform:translateY(4px) scale(.98)!important;box-shadow:0 1px 0 var(--border2)!important;}
   .training-icon{font-size:30px;margin-bottom:8px;}
-  .training-label{font-family:var(--font-d);font-size:13px;font-weight:800;margin-bottom:4px;color:#0C2340;}
+  .training-label{font-family:var(--font-d);font-size:13px;font-weight:800;margin-bottom:4px;color:var(--text);}
   .training-desc{font-size:11px;color:var(--muted);}
   .chapter-chips{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:16px;}
   .chapter-chip{padding:7px 12px;border-radius:10px;border:1.5px solid var(--border);background:var(--surface);color:var(--text2);font-size:12px;font-weight:500;cursor:pointer;transition:transform .14s cubic-bezier(.34,1.56,.64,1);box-shadow:0 3px 0 var(--border2);}
@@ -901,7 +904,7 @@ const css=`
   .mode-card:hover{transform:translateY(-4px);box-shadow:0 8px 0 var(--border2);}
   .mode-card:active{transform:translateY(3px) scale(.98)!important;box-shadow:0 1px 0 var(--border2)!important;}
   .mode-icon{font-size:24px;margin-bottom:5px;}
-  .mode-label{font-family:var(--font-d);font-size:13px;font-weight:800;margin-bottom:2px;color:#0C2340;}
+  .mode-label{font-family:var(--font-d);font-size:13px;font-weight:800;margin-bottom:2px;color:var(--text);}
   .mode-desc{font-size:11px;color:var(--muted);}
 
   /* Count selector */
@@ -949,7 +952,7 @@ const css=`
   .question-card{background:var(--surface);border:1.5px solid var(--border);border-radius:20px;padding:20px;margin-bottom:12px;box-shadow:0 4px 0 var(--border2);position:relative;overflow:hidden;}
   .question-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,#3B82F6,#1D4ED8);border-radius:20px 20px 0 0;}
   .q-label{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:8px;font-weight:700;}
-  .q-text{font-family:var(--font-d);font-size:16px;font-weight:700;line-height:1.5;color:#0C2340;}
+  .q-text{font-family:var(--font-d);font-size:16px;font-weight:700;line-height:1.5;color:var(--text);}
   .q-context{font-size:13px;color:var(--text2);margin-top:10px;line-height:1.65;padding:10px 12px;background:#EFF6FF;border-radius:10px;border-left:3px solid #3B82F6;}
   .brevet-banner{background:#EFF6FF;border:1.5px solid #BFDBFE;border-radius:12px;padding:11px 13px;margin-bottom:11px;display:flex;gap:10px;}
   .brevet-banner-text{font-size:12px;color:#1E40AF;line-height:1.55;}
@@ -960,7 +963,7 @@ const css=`
 
   /* Choices */
   .choices{display:grid;gap:8px;margin-bottom:11px;}
-  .choice-btn{width:100%;padding:13px 14px;border-radius:12px;border:1.5px solid var(--border);background:#fff;color:#0C2340;font-family:var(--font-b);font-size:14px;text-align:left;cursor:pointer;transition:transform .14s cubic-bezier(.34,1.56,.64,1),box-shadow .14s;box-shadow:0 4px 0 var(--border2);user-select:none;}
+  .choice-btn{width:100%;padding:13px 14px;border-radius:12px;border:1.5px solid var(--border);background:#fff;color:var(--text);font-family:var(--font-b);font-size:14px;text-align:left;cursor:pointer;transition:transform .14s cubic-bezier(.34,1.56,.64,1),box-shadow .14s;box-shadow:0 4px 0 var(--border2);user-select:none;}
   .choice-btn:hover:not(:disabled){background:var(--bg2);transform:translateY(-2px);box-shadow:0 6px 0 var(--border2);}
   .choice-btn:active:not(:disabled){transform:translateY(3px)!important;box-shadow:0 1px 0 var(--border2)!important;}
   .choice-btn.correct{background:#ECFDF5;border-color:#10B981;color:#065F46;box-shadow:0 4px 0 #A7F3D0;animation:popCorrect .4s cubic-bezier(.34,1.56,.64,1);}
@@ -977,7 +980,7 @@ const css=`
   .points-cles{margin-top:10px;display:flex;flex-direction:column;gap:6px;}
   .point{display:flex;align-items:flex-start;gap:7px;font-size:12px;color:var(--text2);}
   .point::before{content:'✓';color:#059669;font-weight:700;flex-shrink:0;}
-  .answer-area{width:100%;min-height:120px;background:var(--surface);border:1.5px solid var(--border);border-radius:14px;padding:12px;color:#0C2340;font-family:var(--font-b);font-size:14px;line-height:1.6;resize:vertical;outline:none;margin-bottom:10px;transition:border-color .2s;}
+  .answer-area{width:100%;min-height:120px;background:var(--surface);border:1.5px solid var(--border);border-radius:14px;padding:12px;color:var(--text);font-family:var(--font-b);font-size:14px;line-height:1.6;resize:vertical;outline:none;margin-bottom:10px;transition:border-color .2s;}
   .answer-area:focus{border-color:#3B82F6;box-shadow:0 0 0 3px rgba(59,130,246,.12);}
   .answer-area::placeholder{color:var(--muted);}
 
@@ -1007,20 +1010,20 @@ const css=`
   .history-item{display:flex;align-items:center;gap:10px;padding:9px 12px;background:var(--surface);border:1.5px solid var(--border);border-radius:12px;box-shadow:0 2px 0 var(--border2);}
   .hist-score{font-family:var(--font-d);font-size:15px;font-weight:800;min-width:40px;text-align:center;}
   .hist-info{flex:1;}
-  .hist-subject{font-size:12px;font-weight:700;color:#0C2340;}
+  .hist-subject{font-size:12px;font-weight:700;color:var(--text);}
   .hist-date{font-size:11px;color:var(--muted);}
   .hist-xp{font-size:11px;font-weight:700;color:#2563EB;}
 
   /* Summary */
   .summary-card{background:var(--surface);border:1.5px solid var(--border);border-radius:18px;padding:18px;margin-bottom:12px;box-shadow:0 3px 0 var(--border2);}
-  .summary-msg{font-family:var(--font-d);font-size:16px;font-weight:800;color:#0C2340;margin-bottom:10px;line-height:1.4;}
+  .summary-msg{font-family:var(--font-d);font-size:16px;font-weight:800;color:var(--text);margin-bottom:10px;line-height:1.4;}
   .plan-day{display:flex;gap:10px;padding:10px 12px;background:var(--bg2);border-radius:10px;margin-bottom:7px;}
   .plan-day-label{font-family:var(--font-d);font-size:12px;font-weight:800;color:#2563EB;min-width:52px;}
-  .plan-day-content{font-size:12px;color:#0C2340;line-height:1.5;}
+  .plan-day-content{font-size:12px;color:var(--text);line-height:1.5;}
 
   /* Veille mode */
   .veille-notion{background:var(--surface);border:1.5px solid var(--border);border-radius:14px;padding:14px;margin-bottom:9px;box-shadow:0 3px 0 var(--border2);}
-  .veille-notion-title{font-family:var(--font-d);font-size:14px;font-weight:800;color:#0C2340;margin-bottom:6px;}
+  .veille-notion-title{font-family:var(--font-d);font-size:14px;font-weight:800;color:var(--text);margin-bottom:6px;}
   .veille-notion-content{font-size:13px;color:var(--text2);line-height:1.6;margin-bottom:5px;}
   .veille-notion-exemple{font-size:12px;color:#059669;background:#F0FDF4;border-radius:8px;padding:6px 10px;margin-bottom:5px;}
   .veille-notion-astuce{font-size:12px;color:#7C3AED;background:#F5F3FF;border-radius:8px;padding:6px 10px;}
@@ -1049,7 +1052,7 @@ const css=`
   .exam-duration-badge{display:inline-block;background:#EFF6FF;border:1.5px solid #BAD6F5;border-radius:20px;padding:3px 10px;font-size:11px;font-weight:700;color:#1D4ED8;margin-top:6px;}
   .exam-part-header{background:linear-gradient(135deg,var(--bg2),var(--surface2));border:1.5px solid var(--border);border-radius:14px;padding:13px 15px;margin-bottom:14px;}
   .exam-part-label{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);font-weight:700;margin-bottom:4px;}
-  .exam-part-title{font-family:var(--font-d);font-size:15px;font-weight:800;color:#0C2340;}
+  .exam-part-title{font-family:var(--font-d);font-size:15px;font-weight:800;color:var(--text);}
   .exam-part-points{font-size:12px;color:#7C3AED;font-weight:600;margin-top:2px;}
   .exam-document{background:#FFFBEB;border:1.5px solid #FDE68A;border-radius:12px;padding:13px;margin-bottom:12px;font-size:13px;line-height:1.75;color:#78350F;}
   .exam-document-label{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:#92400E;font-weight:700;margin-bottom:6px;}
@@ -1062,7 +1065,7 @@ const css=`
   .exam-nav-dot.active{background:#3B82F6;}
   .exam-mid-message{background:linear-gradient(135deg,#FEF3C7,#FDE68A);border:1.5px solid #FCD34D;border-radius:14px;padding:14px;margin-bottom:14px;text-align:center;}
   .exam-result-part{background:var(--surface);border:1.5px solid var(--border);border-radius:14px;padding:14px;margin-bottom:10px;box-shadow:0 2px 0 var(--border2);}
-  .exam-result-part-title{font-family:var(--font-d);font-size:13px;font-weight:800;color:#0C2340;margin-bottom:8px;}
+  .exam-result-part-title{font-family:var(--font-d);font-size:13px;font-weight:800;color:var(--text);margin-bottom:8px;}
   .exam-timer-big{text-align:center;margin-bottom:12px;}
   .exam-timer-display{font-family:var(--font-d);font-size:38px;font-weight:800;letter-spacing:-1px;line-height:1;}
   .exam-timer-label{font-size:11px;color:var(--muted);margin-top:3px;}
@@ -1077,14 +1080,14 @@ const css=`
   .planning-header{background:var(--surface);border:1.5px solid var(--border);border-radius:20px;padding:20px;margin-bottom:16px;box-shadow:0 4px 0 var(--border2);text-align:center;}
   .planning-title{font-family:var(--font-d);font-size:20px;font-weight:800;color:var(--text);margin-bottom:6px;}
   .planning-desc{font-size:13px;color:var(--muted);margin-bottom:16px;}
-  .date-input{width:100%;padding:12px 14px;border-radius:12px;border:1.5px solid var(--border);background:var(--bg2);color:#0C2340;font-family:var(--font-b);font-size:16px;outline:none;margin-bottom:12px;}
+  .date-input{width:100%;padding:12px 14px;border-radius:12px;border:1.5px solid var(--border);background:var(--bg2);color:var(--text);font-family:var(--font-b);font-size:16px;outline:none;margin-bottom:12px;}
   .date-input:focus{border-color:#3B82F6;}
   .weeks-row{display:flex;align-items:center;gap:10px;margin-bottom:14px;padding:10px 14px;background:var(--bg2);border-radius:12px;border:1.5px solid var(--border);}
   .weeks-slider{flex:1;accent-color:#3B82F6;}
   .weeks-label{font-family:var(--font-d);font-size:18px;font-weight:800;color:#2563EB;min-width:70px;text-align:right;}
   .planning-day{background:var(--surface);border:1.5px solid var(--border);border-radius:14px;margin-bottom:9px;overflow:hidden;box-shadow:0 3px 0 var(--border2);}
   .planning-day-header{padding:11px 15px;background:var(--bg2);border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;}
-  .day-title{font-family:var(--font-d);font-size:13px;font-weight:800;color:#0C2340;}
+  .day-title{font-family:var(--font-d);font-size:13px;font-weight:800;color:var(--text);}
   .day-date{font-size:11px;color:var(--muted);font-weight:600;}
   .sleep-btn{background:var(--surface);border:1.5px solid var(--border);border-radius:8px;padding:5px 10px;font-size:11px;font-weight:700;color:var(--muted);cursor:pointer;transition:all .15s;display:flex;align-items:center;gap:4px;}
   .sleep-btn:hover{background:#EDE9FE;color:#6D28D9;border-color:#C4B5FD;}
@@ -1094,7 +1097,7 @@ const css=`
   .planning-session:hover{transform:translateY(-2px);box-shadow:0 4px 0 var(--border2);}
   .session-mat{font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;min-width:68px;}
   .session-info{flex:1;}
-  .session-chap{font-size:12px;font-weight:600;color:#0C2340;margin-bottom:1px;}
+  .session-chap{font-size:12px;font-weight:600;color:var(--text);margin-bottom:1px;}
   .session-exo{font-size:11px;color:var(--muted);}
   .session-dur{font-size:11px;font-weight:700;color:var(--text2);white-space:nowrap;}
 
@@ -1112,11 +1115,11 @@ const css=`
   .panel-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;}
   .panel-title{font-family:var(--font-d);font-size:13px;font-weight:800;}
   .panel-close{background:var(--bg2);border:1.5px solid var(--border);color:var(--muted);width:24px;height:24px;border-radius:50%;cursor:pointer;font-size:12px;display:flex;align-items:center;justify-content:center;}
-  .calc-display{background:var(--bg2);border:1.5px solid var(--border);border-radius:9px;padding:10px 12px;text-align:right;font-family:var(--font-d);font-size:22px;font-weight:700;color:#0C2340;margin-bottom:9px;min-height:46px;word-break:break-all;}
+  .calc-display{background:var(--bg2);border:1.5px solid var(--border);border-radius:9px;padding:10px 12px;text-align:right;font-family:var(--font-d);font-size:22px;font-weight:700;color:var(--text);margin-bottom:9px;min-height:46px;word-break:break-all;}
   .calc-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;}
   .calc-btn{padding:10px 4px;border-radius:9px;border:1.5px solid var(--border);font-family:var(--font-d);font-size:14px;font-weight:700;cursor:pointer;transition:transform .12s;user-select:none;}
   .calc-btn:active{transform:scale(.92) translateY(2px)!important;}
-  .calc-num{background:var(--surface);color:#0C2340;box-shadow:0 3px 0 var(--border2);}
+  .calc-num{background:var(--surface);color:var(--text);box-shadow:0 3px 0 var(--border2);}
   .calc-num:hover{background:var(--bg2);}
   .calc-op{background:#EFF6FF;color:#1D4ED8;border-color:#BFDBFE;}
   .calc-op:hover{background:#DBEAFE;}
@@ -1124,7 +1127,7 @@ const css=`
   .calc-clear{background:#FEF2F2;color:#991B1B;border-color:#FECACA;}
   .calc-fn{background:#F0FDF4;color:#065F46;border-color:#A7F3D0;font-size:12px;}
   .calc-fn:hover{background:#DCFCE7;}
-  .notes-area{width:100%;min-height:160px;background:var(--bg2);border:1.5px solid var(--border);border-radius:9px;padding:11px;color:#0C2340;font-family:var(--font-b);font-size:13px;line-height:1.7;resize:none;outline:none;}
+  .notes-area{width:100%;min-height:160px;background:var(--bg2);border:1.5px solid var(--border);border-radius:9px;padding:11px;color:var(--text);font-family:var(--font-b);font-size:13px;line-height:1.7;resize:none;outline:none;}
   .notes-area:focus{border-color:#3B82F6;}
   .notes-area::placeholder{color:var(--muted);}
 
@@ -1140,7 +1143,7 @@ const css=`
   .badge-icon-wrap.earned{background:linear-gradient(135deg,#DBEAFE,#EDE9FE);box-shadow:0 3px 0 #BAD6F5;}
   .badge-icon-wrap.locked{background:#F1F5F9;filter:grayscale(1);opacity:.5;}
   .badge-info{flex:1;min-width:0;}
-  .badge-name{font-family:var(--font-d);font-size:13px;font-weight:800;color:#0C2340;margin-bottom:3px;}
+  .badge-name{font-family:var(--font-d);font-size:13px;font-weight:800;color:var(--text);margin-bottom:3px;}
   .badge-desc{font-size:11px;color:var(--muted);line-height:1.5;}
   .badge-hint{font-size:11px;color:#7C3AED;background:#F5F3FF;border-radius:6px;padding:3px 7px;margin-top:5px;display:inline-block;}
   .badge-earned-tag{font-size:10px;font-weight:700;color:#059669;background:#F0FDF4;border:1px solid #A7F3D0;border-radius:20px;padding:2px 8px;margin-top:4px;display:inline-block;}
@@ -1225,7 +1228,7 @@ function Calculator({onClose}){
         <button className="panel-close" onClick={onClose}>✕</button>
       </div>
       <div className="calc-display" style={{fontSize:display.length>12?14:20,minHeight:52}}>
-        <div style={{fontSize:10,color:"#5A85AA",marginBottom:2}}>{expr||" "}</div>
+        <div style={{fontSize:10,color:"var(--muted)",marginBottom:2}}>{expr||" "}</div>
         {display}
       </div>
       <div style={{display:"flex",gap:6,marginBottom:6}}>
@@ -1278,7 +1281,7 @@ function GeoFigure({question}){
   const[st,setSt]=useState("idle");const[svg,setSvg]=useState(null);
   const gen=async()=>{setSt("loading");try{const raw=await callClaudeText(buildSvgPrompt(question));const m=raw.match(/<svg[\s\S]*<\/svg>/i);setSvg(m?m[0]:null);setSt("done");}catch{setSt("err");}};
   if(st==="idle")return<button className="geo-btn" onClick={gen}>📐 Voir la figure</button>;
-  if(st==="loading")return<p style={{fontSize:12,color:"#3B82F6",marginTop:8}}>Génération…</p>;
+  if(st==="loading")return<p style={{fontSize:12,color:"var(--accent)",marginTop:8}}>Génération…</p>;
   if(!svg)return null;
   return<div className="geo-figure" dangerouslySetInnerHTML={{__html:svg}}/>;
 }
@@ -1340,7 +1343,7 @@ function BadgesPage({stats,onBack}){
       <button className="btn-ghost" onClick={onBack}>← Retour</button>
       <div style={{marginBottom:16}}>
         <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:6}}>
-          <div style={{fontFamily:"var(--font-d)",fontSize:20,fontWeight:800,color:"#0C2340"}}>
+          <div style={{fontFamily:"var(--font-d)",fontSize:20,fontWeight:800,color:"var(--text)"}}>
             🏅 Mes badges
           </div>
           <div style={{fontFamily:"var(--font-d)",fontSize:15,fontWeight:800,color:"#7C3AED"}}>
@@ -1417,13 +1420,13 @@ function TodayWidget({onStartSession, planningKey}){
   const todayISO=new Date().toISOString().split("T")[0];
   const today=saved.planning.find(j=>j.dateISO===todayISO);
   if(!today?.sessions?.length)return null;
-  return(<div className="today-widget"><div className="today-title">📅 Aujourd'hui — planning</div>{today.sessions.map((s,i)=>(<div key={i} className="today-session" onClick={()=>onStartSession(s)}><div style={{flex:1}}><div style={{fontSize:10,fontWeight:700,color:SUBJECT_COLORS[s.matiere]||"#2563EB",textTransform:"uppercase",letterSpacing:1}}>{s.matiere}</div><div style={{fontSize:12,fontWeight:600,color:"#0C2340"}}>{s.chapitre}</div><div style={{fontSize:11,color:"#5A85AA"}}>{s.exercice} · {s.duree}</div></div><div style={{fontSize:15}}>{s.exercice?.toLowerCase().includes("long")?"✍️":"⚡"} →</div></div>))}</div>);
+  return(<div className="today-widget"><div className="today-title">📅 Aujourd'hui — planning</div>{today.sessions.map((s,i)=>(<div key={i} className="today-session" onClick={()=>onStartSession(s)}><div style={{flex:1}}><div style={{fontSize:10,fontWeight:700,color:SUBJECT_COLORS[s.matiere]||"#2563EB",textTransform:"uppercase",letterSpacing:1}}>{s.matiere}</div><div style={{fontSize:12,fontWeight:600,color:"var(--text)"}}>{s.chapitre}</div><div style={{fontSize:11,color:"var(--muted)"}}>{s.exercice} · {s.duree}</div></div><div style={{fontSize:15}}>{s.exercice?.toLowerCase().includes("long")?"✍️":"⚡"} →</div></div>))}</div>);
 }
 
 // ── Mind Map ──────────────────────────────────────────────────────────────────
 function MindMap({stats}){
   const[open,setOpen]=useState(null);
-  return(<div><div className="section-title" style={{marginBottom:8}}>🗺️ Carte de progression</div><p style={{fontSize:12,color:"#5A85AA",marginBottom:14}}>🟢 Maîtrisé · 🟡 Fragile · 🔴 À retravailler · ⚪ Non révisé</p><div className="mindmap-grid">{SUBJECTS.map(s=>{const xp=stats.subjectXP?.[s.id]||0;const weak=stats.weakChapters?.[s.id]||{};const lv=getLevel(xp);const isOpen=open===s.id;return(<div key={s.id} className="mindmap-subject" style={isOpen?{borderColor:s.color}:{}} onClick={()=>setOpen(isOpen?null:s.id)}><div style={{display:"flex",alignItems:"center",gap:8,marginBottom:isOpen?10:0}}><span style={{fontSize:20}}>{s.icon}</span><div><div style={{fontFamily:"var(--font-d)",fontSize:12,fontWeight:800,color:"#0C2340"}}>{s.label}</div><div style={{fontSize:10,fontWeight:600,color:lv.color}}>{lv.label} · {xp} XP</div></div></div>{isOpen&&(CHAPTERS[s.id]||[]).map(ch=>{const n=weak[ch]||0;const dot=xp===0?"#D1D5DB":n>=3?"#DC2626":n>=1?"#D97706":"#059669";const bg=xp===0?"#F9FAFB":n>=3?"#FEF2F2":n>=1?"#FFFBEB":"#F0FDF4";return<div key={ch} className="mindmap-ch-row" style={{background:bg}}><span style={{fontSize:11,color:"#0C2340"}}>{ch}</span><div className="mastery-dot" style={{background:dot}}/></div>;})}{!isOpen&&<div style={{fontSize:11,color:"#5A85AA",marginTop:4}}>Clique pour voir les chapitres →</div>}</div>);})}</div></div>);
+  return(<div><div className="section-title" style={{marginBottom:8}}>🗺️ Carte de progression</div><p style={{fontSize:12,color:"var(--muted)",marginBottom:14}}>🟢 Maîtrisé · 🟡 Fragile · 🔴 À retravailler · ⚪ Non révisé</p><div className="mindmap-grid">{SUBJECTS.map(s=>{const xp=stats.subjectXP?.[s.id]||0;const weak=stats.weakChapters?.[s.id]||{};const lv=getLevel(xp);const isOpen=open===s.id;return(<div key={s.id} className="mindmap-subject" style={isOpen?{borderColor:s.color}:{}} onClick={()=>setOpen(isOpen?null:s.id)}><div style={{display:"flex",alignItems:"center",gap:8,marginBottom:isOpen?10:0}}><span style={{fontSize:20}}>{s.icon}</span><div><div style={{fontFamily:"var(--font-d)",fontSize:12,fontWeight:800,color:"var(--text)"}}>{s.label}</div><div style={{fontSize:10,fontWeight:600,color:lv.color}}>{lv.label} · {xp} XP</div></div></div>{isOpen&&(CHAPTERS[s.id]||[]).map(ch=>{const n=weak[ch]||0;const dot=xp===0?"#D1D5DB":n>=3?"#DC2626":n>=1?"#D97706":"#059669";const bg=xp===0?"#F9FAFB":n>=3?"#FEF2F2":n>=1?"#FFFBEB":"#F0FDF4";return<div key={ch} className="mindmap-ch-row" style={{background:bg}}><span style={{fontSize:11,color:"var(--text)"}}>{ch}</span><div className="mastery-dot" style={{background:dot}}/></div>;})}{!isOpen&&<div style={{fontSize:11,color:"var(--muted)",marginTop:4}}>Clique pour voir les chapitres →</div>}</div>);})}</div></div>);
 }
 
 // ── Session History ───────────────────────────────────────────────────────────
@@ -1446,7 +1449,7 @@ function AISummary({stats,onBack}){
       <div className="section-title">🧠 Résumé IA personnalisé</div>
       <div className="summary-card">
         <div className="summary-msg">"{data.message_motivant}"</div>
-        <p style={{fontSize:13,color:"#1E4976",lineHeight:1.7,marginBottom:14}}>{data.analyse}</p>
+        <p style={{fontSize:13,color:"var(--text2)",lineHeight:1.7,marginBottom:14}}>{data.analyse}</p>
         <div className="section-title">📅 Plan 3 prochains jours</div>
         {data.plan_3jours?.map((j,i)=>(
           <div key={i} className="plan-day">
@@ -1454,7 +1457,7 @@ function AISummary({stats,onBack}){
             <div className="plan-day-content"><strong>{j.focus}</strong> — {j.action}</div>
           </div>
         ))}
-        <div style={{marginTop:14,padding:12,background:"#EFF6FF",borderRadius:10,fontSize:13,color:"#1E3A8A",lineHeight:1.6}}>
+        <div style={{marginTop:14,padding:12,background:"var(--bg2)",borderRadius:10,fontSize:13,color:"var(--text2)",lineHeight:1.6}}>
           💡 {data.conseil_final}
         </div>
       </div>
@@ -1509,14 +1512,14 @@ function VeilleMode({onBack,onStatsUpdate}){
         <span style={{fontSize:28}}>{subject?.icon}</span>
         <div>
           <div className="section-title" style={{marginBottom:2}}>🎯 Les essentiels</div>
-          <div style={{fontFamily:"var(--font-d)",fontSize:16,fontWeight:800,color:"#0C2340"}}>{subject?.label} — L'essentiel à savoir</div>
+          <div style={{fontFamily:"var(--font-d)",fontSize:16,fontWeight:800,color:"var(--text)"}}>{subject?.label} — L'essentiel à savoir</div>
         </div>
       </div>
       {notions.map((n,i)=>(
         <div key={i} className="veille-notion">
           <div className="veille-notion-title" style={{cursor:"pointer"}} onClick={()=>setOpen(open===i?null:i)}>
-            <span style={{color:"#5A85AA",marginRight:8}}>{i+1}.</span>{n.titre}
-            <span style={{float:"right",fontSize:12,color:"#5A85AA"}}>{open===i?"▲":"▼"}</span>
+            <span style={{color:"var(--muted)",marginRight:8}}>{i+1}.</span>{n.titre}
+            <span style={{float:"right",fontSize:12,color:"var(--muted)"}}>{open===i?"▲":"▼"}</span>
           </div>
           {open===i&&<>
             <div className="veille-notion-content">{n.contenu}</div>
@@ -1737,7 +1740,7 @@ function ExamMode({onBack, onStatsUpdate}){
     <div>
       <button className="btn-ghost" onClick={onBack}>← Retour</button>
       <div style={{marginBottom:20}}>
-        <div style={{fontFamily:"var(--font-d)",fontSize:22,fontWeight:800,color:"#0C2340",marginBottom:6}}>
+        <div style={{fontFamily:"var(--font-d)",fontSize:22,fontWeight:800,color:"var(--text)",marginBottom:6}}>
           🎓 Simulation d'examen
         </div>
         <p style={{fontSize:13,color:"var(--muted)",lineHeight:1.6}}>
@@ -1750,7 +1753,7 @@ function ExamMode({onBack, onStatsUpdate}){
             style={{borderColor:`${e.color}40`}}
             onClick={()=>{playCardSelect();startExam(e.id);}}>
             <div style={{fontSize:32,marginBottom:8}}>{e.icon}</div>
-            <div style={{fontFamily:"var(--font-d)",fontSize:14,fontWeight:800,color:"#0C2340",marginBottom:4}}>{e.label}</div>
+            <div style={{fontFamily:"var(--font-d)",fontSize:14,fontWeight:800,color:"var(--text)",marginBottom:4}}>{e.label}</div>
             <div style={{fontSize:11,color:"var(--muted)",marginBottom:6}}>{e.description}</div>
             <div className="exam-duration-badge">⏱ {e.durationLabel}</div>
           </div>
@@ -1768,13 +1771,13 @@ function ExamMode({onBack, onStatsUpdate}){
       <button className="btn-ghost" onClick={()=>setPhase("pick")}>← Changer de matière</button>
       <div style={{background:`${ex.color}12`,border:`1.5px solid ${ex.color}40`,borderRadius:20,padding:20,marginBottom:16,textAlign:"center"}}>
         <div style={{fontSize:40,marginBottom:10}}>{ex.icon}</div>
-        <div style={{fontFamily:"var(--font-d)",fontSize:20,fontWeight:800,color:"#0C2340",marginBottom:6}}>{ex.label}</div>
+        <div style={{fontFamily:"var(--font-d)",fontSize:20,fontWeight:800,color:"var(--text)",marginBottom:6}}>{ex.label}</div>
         <div className="exam-duration-badge" style={{fontSize:14,padding:"6px 16px",marginBottom:14}}>⏱ Durée réelle : {ex.durationLabel}</div>
         <div style={{textAlign:"left",marginBottom:14}}>
           <div className="section-title" style={{marginBottom:8}}>Structure de l'épreuve</div>
           {ex.structure.map((p,i)=>(
             <div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 10px",background:"var(--surface)",borderRadius:10,marginBottom:6,border:"1.5px solid var(--border)"}}>
-              <div style={{fontSize:13,color:"#0C2340",fontWeight:600}}>{p.part}</div>
+              <div style={{fontSize:13,color:"var(--text)",fontWeight:600}}>{p.part}</div>
               <div style={{fontSize:12,color:"#7C3AED",fontWeight:700}}>{p.points} pts</div>
             </div>
           ))}
@@ -1992,7 +1995,7 @@ function ExamMode({onBack, onStatsUpdate}){
         )}
 
         {graded===0&&answered>0&&(
-          <div style={{background:"#EFF6FF",border:"1.5px solid #BAD6F5",borderRadius:12,padding:12,marginBottom:14,fontSize:13,color:"#1E3A8A"}}>
+          <div style={{background:"var(--bg2)",border:"1.5px solid var(--border)",borderRadius:12,padding:12,marginBottom:14,fontSize:13,color:"var(--text2)"}}>
             💡 Tu peux retourner dans chaque partie et demander à l'IA de noter ta réponse !
           </div>
         )}
@@ -2112,7 +2115,7 @@ function QuizMode({subject,chapter,isMix,count,onBack,onStatsUpdate,showFiche=fa
       <div className="progress-wrap">
         <div className="progress-info">
           <span>Q{idx+1}/{questions.length}</span>
-          <span style={{fontSize:10,background:"#EFF6FF",border:"1px solid #BAD6F5",borderRadius:20,padding:"2px 8px",color:"#1D4ED8",fontWeight:700}}>
+          <span style={{fontSize:10,background:"var(--bg2)",border:"1px solid var(--border)",borderRadius:20,padding:"2px 8px",color:"var(--accent)",fontWeight:700}}>
             {DIFFICULTY_LEVELS.find(l=>l.id===getDifficulty())?.emoji} {DIFFICULTY_LEVELS.find(l=>l.id===getDifficulty())?.label}
           </span>
           <span>{score} ⭐</span>
@@ -2130,7 +2133,7 @@ function QuizMode({subject,chapter,isMix,count,onBack,onStatsUpdate,showFiche=fa
       {selected&&<>
         <div className="explanation"><strong>💡 Explication</strong>{q.explanation}</div>
         {isWrong&&!errorExplain&&!loadingExplain&&<button className="btn-secondary" style={{marginBottom:10}} onClick={askExplain}>🤔 Pourquoi ma réponse était fausse ?</button>}
-        {loadingExplain&&<p style={{textAlign:"center",fontSize:12,color:"#3B82F6",marginBottom:10}}>Analyse…</p>}
+        {loadingExplain&&<p style={{textAlign:"center",fontSize:12,color:"var(--accent)",marginBottom:10}}>Analyse…</p>}
         {errorExplain&&<div className="error-explain"><strong>🔍 Comprendre l'erreur</strong>{errorExplain}</div>}
         {etymology&&<div style={{background:"#FFF7ED",border:"1.5px solid #FED7AA",borderRadius:10,padding:"8px 12px",marginBottom:10,fontSize:12,color:"#92400E"}}><strong style={{display:"block",fontSize:10,letterSpacing:2,textTransform:"uppercase",marginBottom:3}}>📚 Étymologie</strong>{etymology}</div>}
         <button className="btn-cta" onClick={handleNext}>{isLast?"Voir mon score →":"Question suivante →"}</button>
@@ -2223,9 +2226,9 @@ function LongMode({subject,chapter,isMix,onBack,onStatsUpdate,showFiche=false}){
             <div className="correction-text">{data.correction}</div>
             {data.points_cles?.length>0&&(<><div style={{fontSize:10,letterSpacing:2,textTransform:"uppercase",color:"#6D28D9",marginTop:12,marginBottom:6,fontWeight:700}}>Points clés attendus</div><div className="points-cles">{data.points_cles.map((p,i)=><div key={i} className="point">{p}</div>)}</div></>)}
           </div>
-          <div style={{marginBottom:12,background:"#F0F7FF",borderRadius:12,padding:12,border:"1.5px solid #BAD6F5"}}>
-            <div style={{fontSize:10,letterSpacing:2,textTransform:"uppercase",color:"#5A85AA",marginBottom:6,fontWeight:700}}>Ta réponse</div>
-            <div style={{fontSize:13,lineHeight:1.75,color:"#1E4976",whiteSpace:"pre-wrap"}}>{answer}</div>
+          <div style={{marginBottom:12,background:"var(--surface2)",borderRadius:12,padding:12,border:"1.5px solid var(--border)"}}>
+            <div style={{fontSize:10,letterSpacing:2,textTransform:"uppercase",color:"var(--muted)",marginBottom:6,fontWeight:700}}>Ta réponse</div>
+            <div style={{fontSize:13,lineHeight:1.75,color:"var(--text2)",whiteSpace:"pre-wrap"}}>{answer}</div>
           </div>
           {!grade&&!grading&&(
             <button className="btn-cta" style={{marginBottom:10,background:"linear-gradient(180deg,#059669,#047857)"}} onClick={handleGrade}>
@@ -2374,7 +2377,7 @@ function PlanningScreen({onBack,onStartSession,onPlanningUpdate}){
             return(
               <div key={i} className="planning-day" style={isToday?{border:"2px solid #3B82F6",boxShadow:"0 3px 0 #93C5E8, 0 0 0 3px #DBEAFE"}:{}}>
                 <div className="planning-day-header" style={isRest?{opacity:0.55}:{}}>
-                  <span className="day-title" style={isToday?{color:"#2563EB"}:{}}>{isToday?"👉 ":""}{jour.jour}{isToday?" (Aujourd'hui)":""}</span>
+                  <span className="day-title" style={isToday?{color:"var(--accent)"}:{}}>{isToday?"👉 ":""}{jour.jour}{isToday?" (Aujourd'hui)":""}</span>
                   <div style={{display:"flex",alignItems:"center",gap:6}}>
                     <span className="day-date">{jour.date}</span>
                     <button className={"sleep-btn"+(isRest?" active":"")} onClick={()=>setRestDays(p=>p.includes(jour.dateISO)?p.filter(d=>d!==jour.dateISO):[...p,jour.dateISO])}>
@@ -2383,7 +2386,7 @@ function PlanningScreen({onBack,onStartSession,onPlanningUpdate}){
                   </div>
                 </div>
                 {isRest?(
-                  <div style={{padding:"10px 14px",fontSize:12,color:"#5A85AA",fontStyle:"italic"}}>Jour de repos 😴</div>
+                  <div style={{padding:"10px 14px",fontSize:12,color:"var(--muted)",fontStyle:"italic"}}>Jour de repos 😴</div>
                 ):(
                   <div className="planning-sessions-list">
                     {(jour.sessions||[]).map((s,j)=>(
@@ -2675,7 +2678,7 @@ export default function App(){
                       {id:"stories",icon:"📱",label:"Stories",desc:"Swipe !"},
                       {id:"veille",icon:"🎯",label:"Les essentiels",desc:"L'essentiel à savoir"},
                     ].map(m=>(
-                      <div key={m.id} className="mode-card" style={mixMode===m.id?{borderColor:"#3B82F6",background:"#DBEAFE",boxShadow:"0 8px 0 #93C5FD",transform:"translateY(-4px)"}:{}} onClick={()=>{playModeSelect();setMixMode(m.id);}}>
+                      <div key={m.id} className="mode-card" style={mixMode===m.id?{borderColor:"#3B82F6",background:"var(--bg2)",boxShadow:"0 8px 0 #93C5FD",transform:"translateY(-4px)"}:{}} onClick={()=>{playModeSelect();setMixMode(m.id);}}>
                         <div className="mode-icon">{m.icon}</div><div className="mode-label">{m.label}</div><div className="mode-desc">{m.desc}</div>
                       </div>
                     ))}
