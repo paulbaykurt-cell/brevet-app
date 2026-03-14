@@ -210,6 +210,20 @@ function clearSeenQuestions(subjectId){
 }
 
 // ── SOUND (Web Audio API) ─────────────────────────────────────────────────────
+function playClick(){
+  try{
+    const ctx=new(window.AudioContext||window.webkitAudioContext)();
+    const osc=ctx.createOscillator();
+    const gain=ctx.createGain();
+    osc.connect(gain);gain.connect(ctx.destination);
+    osc.frequency.setValueAtTime(800,ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(600,ctx.currentTime+0.06);
+    gain.gain.setValueAtTime(0.08,ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+0.07);
+    osc.start();osc.stop(ctx.currentTime+0.08);
+  }catch{}
+}
+
 function playSound(type){
   try{
     const ctx=new(window.AudioContext||window.webkitAudioContext)();
@@ -605,7 +619,10 @@ const css=`
   .notes-area:focus{border-color:#3B82F6;}
   .notes-area::placeholder{color:var(--muted);}
 
-  .divider{height:1px;background:var(--border);margin:16px 0;}
+  .sticky-cta{position:sticky;bottom:16px;z-index:10;padding-top:10px;}
+  .sticky-cta .btn-cta{box-shadow:0 6px 0 #1E40AF,0 8px 24px rgba(29,78,216,.4),0 -8px 20px rgba(235,245,255,.9);}
+  .fade-in{animation:fadeSlideIn .3s cubic-bezier(.34,1.2,.64,1);}
+  @keyframes fadeSlideIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
   .hint{text-align:center;font-size:12px;color:var(--muted);margin-top:6px;}
   .err{color:#DC2626;text-align:center;padding:40px 0;}
   .sound-toggle{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted);margin-bottom:12px;cursor:pointer;user-select:none;}
@@ -803,7 +820,7 @@ function Dashboard({stats}){
 }
 
 // ── Today Widget ──────────────────────────────────────────────────────────────
-function TodayWidget({onStartSession}){
+function TodayWidget({onStartSession, planningKey}){
   const saved=loadPlanning();if(!saved)return null;
   const todayISO=new Date().toISOString().split("T")[0];
   const today=saved.planning.find(j=>j.dateISO===todayISO);
@@ -957,6 +974,17 @@ function StoriesMode({subject,chapter,isMix,onBack,onDone}){
   const[selected,setSelected]=useState(null);
   const[score,setScore]=useState(0);
   const touchX=useRef(null);
+  // Refs pour éviter le bug de closure dans keydown
+  const selectedRef=useRef(null);
+  const idxRef=useRef(0);
+  const scoreRef=useRef(0);
+  const questionsRef=useRef([]);
+
+  useEffect(()=>{selectedRef.current=selected;},[selected]);
+  useEffect(()=>{idxRef.current=idx;},[idx]);
+  useEffect(()=>{scoreRef.current=score;},[score]);
+  useEffect(()=>{questionsRef.current=questions;},[questions]);
+
   useEffect(()=>{
     const seen=isMix?getSeenQuestions("mix"):getSeenQuestions(subject?.id||"");
     const prompt=isMix?buildMixPrompt(seen):buildQuizPrompt(subject.label,chapter,[],5,seen);
@@ -966,28 +994,64 @@ function StoriesMode({subject,chapter,isMix,onBack,onDone}){
       setQuestions(qs);setState("quiz");
     }).catch(()=>setState("error"));
   },[]);
+
   useEffect(()=>{
-    const onKey=e=>{if(e.key==="ArrowRight"&&selected!==null)next();};
-    window.addEventListener("keydown",onKey);return()=>window.removeEventListener("keydown",onKey);
-  },[selected,idx,score,questions]);
-  const next=()=>{if(idx<questions.length-1){setIdx(i=>i+1);setSelected(null);}else onDone(score,questions.length);};
+    const onKey=e=>{
+      if(e.key==="ArrowRight"&&selectedRef.current!==null){
+        const curIdx=idxRef.current;
+        const qs=questionsRef.current;
+        if(curIdx<qs.length-1){setIdx(i=>i+1);setSelected(null);}
+        else onDone(scoreRef.current,qs.length);
+      }
+    };
+    window.addEventListener("keydown",onKey);
+    return()=>window.removeEventListener("keydown",onKey);
+  },[]); // [] = monté une seule fois, utilise les refs
+
+  const next=()=>{
+    if(idx<questions.length-1){setIdx(i=>i+1);setSelected(null);}
+    else onDone(score,questions.length);
+  };
+
   if(state==="loading")return<Spinner text="Chargement des stories…"/>;
-  if(state==="error")return<p className="err">Erreur. Réessaie !</p>;
+  if(state==="error")return<p className="err">Aïe, un souci technique — réessaie !</p>;
   const q=questions[idx];
   return(
     <div>
       <button className="btn-ghost" onClick={onBack}>← Retour</button>
       <div className="story-dots">{questions.map((_,i)=><div key={i} className={"story-dot"+(i<=idx?" active":"")}/>)}</div>
-      <div className="story-card" onTouchStart={e=>touchX.current=e.touches[0].clientX} onTouchEnd={e=>{if(touchX.current-e.changedTouches[0].clientX>50&&selected!==null)next();}}>
+      <div className="story-card"
+        onTouchStart={e=>touchX.current=e.touches[0].clientX}
+        onTouchEnd={e=>{if(touchX.current-e.changedTouches[0].clientX>50&&selected!==null)next();}}>
         <div className="q-label">{isMix?`🎲 ${q.matiere||""}`:`${subject?.icon} ${subject?.label}`}</div>
         <div className="q-text" style={{flex:1,marginBottom:16}}>{q.question}</div>
         <div className="choices" style={{marginBottom:0}}>
-          {q.choices.map(c=>{let cls="choice-btn";if(selected!==null){if(c.startsWith(q.answer))cls+=" correct";else if(c===selected)cls+=" wrong";}
-          return<button key={c} className={cls} disabled={selected!==null} onClick={()=>{setSelected(c);if(c.startsWith(q.answer)){setScore(s=>s+1);if(soundEnabled.value)playSound("correct");}else if(soundEnabled.value)playSound("wrong");}}>{c}</button>;})}
+          {q.choices.map(c=>{
+            let cls="choice-btn";
+            if(selected!==null){if(c.startsWith(q.answer))cls+=" correct";else if(c===selected)cls+=" wrong";}
+            return<button key={c} className={cls} disabled={selected!==null} onClick={()=>{
+              setSelected(c);
+              if(c.startsWith(q.answer)){setScore(s=>s+1);if(soundEnabled.value)playSound("correct");}
+              else if(soundEnabled.value)playSound("wrong");
+            }}>{c}</button>;
+          })}
         </div>
-        {selected&&<div style={{marginTop:10}}><div className="explanation"><strong>💡</strong>{q.explanation}</div><button className="btn-cta" onClick={next}>{idx===questions.length-1?"Voir mon score →":"Suivant → (ou → clavier)"}</button></div>}
+        {selected&&(
+          <div style={{marginTop:10}}>
+            <div className="explanation"><strong>💡</strong>{q.explanation}</div>
+            <div style={{display:"flex",gap:8,marginTop:8}}>
+              <button className="btn-cta" onClick={()=>{playClick();next();}}>
+                {idx===questions.length-1?"Voir mon score →":"Suivant →"}
+              </button>
+            </div>
+          </div>
+        )}
       </div>
-      <p style={{textAlign:"center",fontSize:11,color:"var(--muted)",marginTop:8}}>📱 Swipe · ⌨️ touche → sur PC</p>
+      <div style={{display:"flex",justifyContent:"center",gap:12,marginTop:10}}>
+        <div style={{fontSize:11,color:"var(--muted)",textAlign:"center"}}>
+          📱 Swipe à droite · ⌨️ Flèche → sur PC
+        </div>
+      </div>
     </div>
   );
 }
@@ -1249,7 +1313,7 @@ function LongMode({subject,chapter,isMix,onBack,onStatsUpdate,showFiche=false}){
 }
 
 // ── Planning Screen ───────────────────────────────────────────────────────────
-function PlanningScreen({onBack,onStartSession}){
+function PlanningScreen({onBack,onStartSession,onPlanningUpdate}){
   const saved=loadPlanning();
   const[date,setDate]=useState(saved?.brevetDate||"");
   const[weeks,setWeeks]=useState(8);
@@ -1263,7 +1327,7 @@ function PlanningScreen({onBack,onStartSession}){
     if(useWeeks){daysLeft=weeks*7;const d=new Date(Date.now()+daysLeft*86400000);dateStr=d.toLocaleDateString("fr-FR",{day:"numeric",month:"long",year:"numeric"});}
     else{const obj=new Date(date);daysLeft=Math.ceil((obj-new Date())/86400000);dateStr=obj.toLocaleDateString("fr-FR",{day:"numeric",month:"long",year:"numeric"});}
     setState("loading");
-    try{const d=await withMinDelay(callClaude(buildPlanningPrompt(dateStr,daysLeft),null,3000),600);const j=d.jours||[];setPlanning(j);savePlanning(j,date||"");setState("done");}
+    try{const d=await withMinDelay(callClaude(buildPlanningPrompt(dateStr,daysLeft),null,3000),600);const j=d.jours||[];setPlanning(j);savePlanning(j,date||"");setState("done");onPlanningUpdate&&onPlanningUpdate();}
     catch{setState("error");}
   };
 
@@ -1342,9 +1406,24 @@ function SetupScreen({subject,onStart,onBack}){
   const[mode,setMode]=useState(null);
   const[qCount,setQCount]=useState(5);
   const[showFiche,setShowFiche]=useState(true);
+  const[showModes,setShowModes]=useState(false);
+  const[showCount,setShowCount]=useState(false);
   const chapters=CHAPTERS[subject.id]||[];
   const canStart=mode&&(trainingType==="mixed"||(trainingType==="chapter"&&chapter));
   const ss=a=>a?{borderColor:subject.color,background:`${subject.color}15`,boxShadow:`0 9px 0 ${subject.color}30`,transform:"translateY(-4px)"}:{};
+
+  const selectTraining=t=>{
+    setTrainingType(t);setChapter(null);setMode(null);setShowModes(false);setShowCount(false);
+    if(t==="mixed")setTimeout(()=>setShowModes(true),80);
+  };
+  const selectChapter=c=>{
+    setChapter(c);setMode(null);setShowModes(false);setShowCount(false);
+    setTimeout(()=>setShowModes(true),80);
+  };
+  const selectMode=m=>{
+    setMode(m);setShowCount(false);
+    if(m==="quiz")setTimeout(()=>setShowCount(true),80);
+  };
 
   return(
     <div>
@@ -1356,46 +1435,76 @@ function SetupScreen({subject,onStart,onBack}){
           {id:"mixed",icon:subject.id==="anglais"?"📖":"🎯",label:subject.id==="anglais"?"Révision générale":"Tout ce qui tombe au brevet",desc:"Sujets les plus probables"},
           {id:"chapter",icon:"📖",label:"Par chapitre",desc:"Cible un chapitre précis"},
         ].map(t=>(
-          <div key={t.id} className="training-card" style={ss(trainingType===t.id)} onClick={()=>{setTrainingType(t.id);setChapter(null);setMode(null);}}>
+          <div key={t.id} className="training-card" style={ss(trainingType===t.id)} onClick={()=>{playClick();selectTraining(t.id);}}>
             <div className="training-icon">{t.icon}</div><div className="training-label">{t.label}</div><div className="training-desc">{t.desc}</div>
           </div>
         ))}
       </div>
+
       {trainingType==="chapter"&&(
-        <><div className="section-title">Choisis un chapitre</div>
-        <div className="chapter-chips">{chapters.map(c=><div key={c} className="chapter-chip" style={chapter===c?{borderColor:subject.color,background:`${subject.color}15`,color:subject.color,fontWeight:700,transform:"translateY(-2px)"}:{}} onClick={()=>setChapter(c)}>{c}</div>)}</div></>
-      )}
-      {trainingType&&(trainingType==="mixed"||chapter)&&(
-        <>
-          <div className="divider"/>
-          <div className="section-title">Type de questions</div>
-          <div className="mode-grid">
-            {[
-              {id:"quiz",icon:"⚡",label:"Quiz",desc:"QCM"},
-              {id:"long",icon:"✍️",label:"Question Longue",desc:"1 question ouverte"},
-              {id:"stories",icon:"📱",label:"Stories",desc:"Swipe !"},
-            ].map(m=>(
-              <div key={m.id} className="mode-card" style={mode===m.id?{borderColor:subject.color,background:`${subject.color}12`,boxShadow:`0 8px 0 ${subject.color}25`,transform:"translateY(-4px)"}:{}} onClick={()=>setMode(m.id)}>
-                <div className="mode-icon">{m.icon}</div><div className="mode-label">{m.label}</div><div className="mode-desc">{m.desc}</div>
+        <div className="fade-in">
+          <div className="section-title">Choisis un chapitre</div>
+          <div className="chapter-chips">
+            {chapters.map(c=>(
+              <div key={c} className="chapter-chip"
+                style={chapter===c?{borderColor:subject.color,background:`${subject.color}15`,color:subject.color,fontWeight:700,transform:"translateY(-2px)"}:{}}
+                onClick={()=>{playClick();selectChapter(c);}}>
+                {c}
               </div>
             ))}
           </div>
-          {mode==="quiz"&&(
-            <>
-              <div className="section-title">Nombre de questions</div>
-              <div className="count-selector">
-                {[3,5,10].map(n=><button key={n} className={"count-btn"+(qCount===n?" selected":"")} onClick={()=>setQCount(n)}>{n} questions</button>)}
+        </div>
+      )}
+
+      {showModes&&(
+        <div className="fade-in">
+          <div className="section-title">Type de questions</div>
+          <div className="mode-grid">
+            {[
+              {id:"quiz",  icon:"⚡", label:"Quiz",          desc:"QCM"},
+              {id:"long",  icon:"✍️", label:"Question Longue",desc:"1 question ouverte"},
+              {id:"stories",icon:"📱",label:"Stories",        desc:"Swipe !"},
+            ].map(m=>(
+              <div key={m.id} className="mode-card"
+                style={mode===m.id?{borderColor:subject.color,background:`${subject.color}12`,boxShadow:`0 8px 0 ${subject.color}25`,transform:"translateY(-4px)"}:{}}
+                onClick={()=>{playClick();selectMode(m.id);}}>
+                <div className="mode-icon">{m.icon}</div>
+                <div className="mode-label">{m.label}</div>
+                <div className="mode-desc">{m.desc}</div>
               </div>
-            </>
-          )}
+            ))}
+          </div>
+        </div>
+      )}
+
+      {showCount&&(
+        <div className="fade-in">
+          <div className="section-title">Nombre de questions</div>
+          <div className="count-selector">
+            {[3,5,10].map(n=>(
+              <button key={n} className={"count-btn"+(qCount===n?" selected":"")} onClick={()=>{playClick();setQCount(n);}}>
+                {n} questions
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {mode&&(
+        <div className="fade-in">
           <label className="sound-toggle">
             <input type="checkbox" defaultChecked onChange={e=>{soundEnabled.value=e.target.checked;}}/> Sons activés
           </label>
-          <label className="sound-toggle" style={{marginBottom:16}}>
-            <input type="checkbox" checked={showFiche} onChange={e=>setShowFiche(e.target.checked)}/> Afficher mini-fiche avant de commencer
+          <label className="sound-toggle" style={{marginBottom:10}}>
+            <input type="checkbox" checked={showFiche} onChange={e=>setShowFiche(e.target.checked)}/> Mini-fiche avant de commencer
           </label>
-          <button className="btn-cta" disabled={!canStart} onClick={()=>canStart&&onStart(trainingType==="chapter"?chapter:null,mode,qCount,showFiche)}>C'est parti 🚀</button>
-        </>
+          <div className="sticky-cta">
+            <button className="btn-cta" disabled={!canStart}
+              onClick={()=>{if(canStart){playClick();onStart(trainingType==="chapter"?chapter:null,mode,qCount,showFiche);}}}>
+              C'est parti 🚀
+            </button>
+          </div>
+        </div>
       )}
     </div>
   );
@@ -1414,6 +1523,7 @@ export default function App(){
   const[mixMode,setMixMode]=useState(null);
   const[stats,setStats]=useState(()=>getStats());
   const[subScreen,setSubScreen]=useState(null);
+  const[planningKey,setPlanningKey]=useState(0);
 
   const goHome=()=>{setScreen("home");setSubject(null);setChapter(null);setIsMix(false);setMode(null);setMixMode(null);setSubScreen(null);};
   const refresh=s=>setStats(s||getStats());
@@ -1454,11 +1564,11 @@ export default function App(){
                 <p>Questions IA · Programme officiel DNB</p>
               </div>
               <div className="home-tabs">
-                <button className={`home-tab${homeTab==="accueil"?" active":""}`} onClick={()=>setHomeTab("accueil")}>🏠 Accueil</button>
-                <button className={`home-tab${homeTab==="matieres"?" active":""}`} onClick={()=>setHomeTab("matieres")}>📚 Matières</button>
-                <button className={`home-tab${homeTab==="mix"?" active":""}`} onClick={()=>setHomeTab("mix")}>🎲 Mix</button>
-                <button className={`home-tab${homeTab==="carte"?" active":""}`} onClick={()=>setHomeTab("carte")}>🗺️ Carte</button>
-                <button className={`home-tab${homeTab==="plus"?" active":""}`} onClick={()=>setHomeTab("plus")}>✨ Plus</button>
+                <button className={`home-tab${homeTab==="accueil"?" active":""}`} onClick={()=>{playClick();setHomeTab("accueil");}}>🏠 Accueil</button>
+                <button className={`home-tab${homeTab==="matieres"?" active":""}`} onClick={()=>{playClick();setHomeTab("matieres");}}>📚 Matières</button>
+                <button className={`home-tab${homeTab==="mix"?" active":""}`} onClick={()=>{playClick();setHomeTab("mix");}}>🎲 Mix</button>
+                <button className={`home-tab${homeTab==="carte"?" active":""}`} onClick={()=>{playClick();setHomeTab("carte");}}>🗺️ Carte</button>
+                <button className={`home-tab${homeTab==="plus"?" active":""}`} onClick={()=>{playClick();setHomeTab("plus");}}>✨ Plus</button>
               </div>
 
               {homeTab==="accueil"&&(
@@ -1466,9 +1576,9 @@ export default function App(){
                   <WelcomeBack stats={stats} onStartUrgent={startUrgent}/>
                   <DailyGoal stats={stats}/>
                   <Dashboard stats={stats}/>
-                  <TodayWidget onStartSession={startPlanningSession}/>
+                  <TodayWidget onStartSession={startPlanningSession} planningKey={planningKey}/>
                   <div className="section-title">Lancer une session</div>
-                  <button className="quick-btn" onClick={()=>{setIsMix(true);setSubject(null);setChapter(null);setMode("quiz");setQCount(2);setShowFiche(false);setScreen("play");}}>
+                  <button className="quick-btn" onClick={()=>{playClick();setIsMix(true);setSubject(null);setChapter(null);setMode("quiz");setQCount(2);setShowFiche(false);setScreen("play");}}>
                     ⚡ Session express — 2 questions, moins d'1 minute
                   </button>
                   <div className="mode-grid">
@@ -1479,6 +1589,7 @@ export default function App(){
                       {id:"veille",icon:"🎯",label:"Les essentiels",desc:"L'essentiel à savoir"},
                     ].map(m=>(
                       <div key={m.id} className="mode-card" onClick={()=>{
+                        playClick();
                         if(m.id==="exam"){setMode("exam");setScreen("play");return;}
                         if(m.id==="veille"){setMode("veille");setScreen("play");return;}
                         setIsMix(true);setSubject(null);setChapter(null);
@@ -1499,7 +1610,7 @@ export default function App(){
                       <div key={s.id} className="subject-card"
                         onMouseEnter={e=>{e.currentTarget.style.borderColor=s.color;}}
                         onMouseLeave={e=>{e.currentTarget.style.borderColor="";}}
-                        onClick={()=>{setSubject(s);setScreen("setup");}}>
+                        onClick={()=>{playClick();setSubject(s);setScreen("setup");}}>
                         <div className="subject-icon">{s.icon}</div>
                         <div className="subject-label">{s.label}</div>
                         <div className="subject-lv" style={{color:lv.color}}>{xp>0?lv.label:""}</div>
@@ -1521,7 +1632,7 @@ export default function App(){
                       {id:"stories",icon:"📱",label:"Stories",desc:"Swipe !"},
                       {id:"veille",icon:"🎯",label:"Les essentiels",desc:"L'essentiel à savoir"},
                     ].map(m=>(
-                      <div key={m.id} className="mode-card" style={mixMode===m.id?{borderColor:"#3B82F6",background:"#DBEAFE",boxShadow:"0 8px 0 #93C5FD",transform:"translateY(-4px)"}:{}} onClick={()=>setMixMode(m.id)}>
+                      <div key={m.id} className="mode-card" style={mixMode===m.id?{borderColor:"#3B82F6",background:"#DBEAFE",boxShadow:"0 8px 0 #93C5FD",transform:"translateY(-4px)"}:{}} onClick={()=>{playClick();setMixMode(m.id);}}>
                         <div className="mode-icon">{m.icon}</div><div className="mode-label">{m.label}</div><div className="mode-desc">{m.desc}</div>
                       </div>
                     ))}
@@ -1586,7 +1697,7 @@ export default function App(){
               )}
 
               {homeTab==="planning-screen"&&(
-                <PlanningScreen onBack={()=>setHomeTab("plus")} onStartSession={startPlanningSession}/>
+                <PlanningScreen onBack={()=>setHomeTab("plus")} onStartSession={startPlanningSession} onPlanningUpdate={()=>setPlanningKey(k=>k+1)}/>
               )}
             </>
           )}
