@@ -376,7 +376,118 @@ const buildLongPrompt=(subject,chapter)=>{
   if(subject==="Anglais")return`Génère 1 exercice anglais niveau 3ème${chapter?` sur "${chapter}"`:""}.\nJSON:{"question":"...","context":"...","correction":"...","points_cles":["...","...","..."]}`;
   return`Génère 1 question ouverte type brevet sur "${subject}"${chapter?` chapitre "${chapter}"`:" (sujets les plus probables)"} élève 3ème.\nJSON:{"question":"...","context":"...","correction":"...","points_cles":["...","...","..."]}`;
 };
-const buildExamPrompt=()=>`Génère sujet brevet complet. 1 question par matière parmi: ${MIX_LIST}. Mélange QCM et ouvertes.\nJSON:{"questions":[{"type":"qcm","matiere":"...","question":"...","choices":["A. ...","B. ...","C. ...","D. ..."],"answer":"A","explanation":"..."},{"type":"open","matiere":"...","question":"...","correction":"..."}]}`;
+// ── VRAIS SUJETS BREVET par matière ──────────────────────────────────────────
+const EXAM_SUBJECTS = [
+  {
+    id: "francais",
+    label: "Français",
+    icon: "📚",
+    color: "#7C3AED",
+    duration: 3 * 60,
+    durationLabel: "3h",
+    description: "Compréhension, réécriture, dictée et rédaction",
+    structure: [
+      {part:"Compréhension de texte", points:20, type:"open"},
+      {part:"Réécriture", points:10, type:"open"},
+      {part:"Dictée / Orthographe", points:10, type:"open"},
+      {part:"Rédaction", points:40, type:"open"},
+    ]
+  },
+  {
+    id: "maths",
+    label: "Mathématiques",
+    icon: "📐",
+    color: "#3B82F6",
+    duration: 2 * 60,
+    durationLabel: "2h",
+    description: "Calcul, géométrie, statistiques et problèmes",
+    structure: [
+      {part:"Exercice 1 — Calcul numérique & algèbre", points:20, type:"open"},
+      {part:"Exercice 2 — Géométrie (Pythagore/Thalès/Trigo)", points:20, type:"open"},
+      {part:"Exercice 3 — Statistiques & Probabilités", points:15, type:"open"},
+      {part:"Exercice 4 — Problème de modélisation", points:25, type:"open"},
+    ]
+  },
+  {
+    id: "histoire",
+    label: "Histoire-Géo & EMC",
+    icon: "🌍",
+    color: "#059669",
+    duration: 2 * 60,
+    durationLabel: "2h",
+    description: "Histoire, Géographie et EMC — épreuve combinée",
+    structure: [
+      {part:"Histoire — Étude de documents", points:20, type:"open"},
+      {part:"Histoire — Développement construit", points:20, type:"open"},
+      {part:"Géographie — Étude de documents", points:20, type:"open"},
+      {part:"EMC — Question de réflexion", points:20, type:"open"},
+    ]
+  },
+  {
+    id: "sciences",
+    label: "Sciences",
+    icon: "🔬",
+    color: "#D97706",
+    duration: 1 * 60,
+    durationLabel: "1h",
+    description: "2 disciplines parmi SVT, Physique-Chimie, Technologie (30 min chacune)",
+    structure: [
+      {part:"Discipline 1 — SVT ou Physique-Chimie", points:25, type:"open"},
+      {part:"Discipline 2 — Physique-Chimie ou Technologie", points:25, type:"open"},
+    ]
+  },
+];
+
+const PAST_SUBJECTS = {
+  francais: `Sujets réels des brevets précédents :
+- 2023 : Texte de Romain Gary "La promesse de l'aube" — compréhension + rédaction sur la famille
+- 2022 : Texte de Zola — description naturaliste, figures de style, réécriture à l'imparfait
+- 2021 : Texte sur l'écologie — argumentation, connecteurs logiques, rédaction
+- 2019 : Texte de Maupassant — point de vue narratif, champ lexical, réécriture
+Thèmes récurrents : famille, nature, société, liberté, amitié`,
+
+  maths: `Sujets réels des brevets précédents :
+- 2023 : Théorème de Pythagore (triangle rectangle), statistiques (moyenne, médiane), équations du premier degré, probabilités (urne), problème de géométrie dans l'espace (volume d'un cône)
+- 2022 : Thalès (droites parallèles), fonctions affines, calcul littéral, fractions, trigonométrie, statistiques (diagramme)
+- 2021 : Pythagore + réciproque, expressions algébriques, probabilités (tableau de loi), géométrie plane (aires), repérage cartésien
+- 2019 : Proportionnalité, équations, inéquations, géométrie (Thalès), statistiques (quartiles)
+Thèmes récurrents : Pythagore, Thalès, probabilités, statistiques, fonctions affines`,
+
+  histoire: `Sujets réels des brevets précédents :
+- 2023 : Histoire = La Guerre Froide (Berlin, Cuba), Géo = La mondialisation des échanges, EMC = La laïcité en France
+- 2022 : Histoire = La 2ème Guerre Mondiale (Shoah, Résistance), Géo = Espaces urbains dans le monde, EMC = Droits et libertés fondamentaux
+- 2021 : Histoire = La Ve République (De Gaulle, institutions), Géo = Les inégalités de développement, EMC = La démocratie représentative
+- 2019 : Histoire = La décolonisation, Géo = L'Union Européenne, EMC = Engagement citoyen
+Thèmes récurrents : 2GM, Guerre Froide, Ve République, mondialisation, développement durable`,
+
+  sciences: `Sujets réels des brevets précédents :
+- 2023 : SVT = Génétique (ADN, mutations, hérédité), Physique = Électricité (circuits, loi d'Ohm), Techno = Objets connectés et programmation Python
+- 2022 : SVT = Écosystèmes et biodiversité, Physique = Optique (lumière, lentilles), Techno = Développement durable et éco-conception
+- 2021 : SVT = Corps humain (système immunitaire, vaccins), Physique = Mécanique (vitesse, forces), Techno = Algorithmes et systèmes embarqués
+- 2019 : SVT = Reproduction et génétique, Physique = Énergie (puissance, rendement), Techno = Réseaux et protocoles
+Thèmes récurrents : génétique, électricité, écosystèmes, optique, programmation`,
+};
+
+const buildRealExamPrompt = (examSubject, partIndex) => {
+  const ex = EXAM_SUBJECTS.find(e => e.id === examSubject);
+  const part = ex.structure[partIndex];
+  const past = PAST_SUBJECTS[examSubject] || "";
+  const seed = Math.floor(Math.random()*99999);
+
+  const subjectHint = examSubject === "sciences"
+    ? "SVT, Physique-Chimie et Technologie niveau 3ème"
+    : examSubject === "histoire"
+    ? "Histoire-Géographie et EMC niveau 3ème"
+    : `${ex.label} niveau 3ème`;
+
+  return `[Seed:${seed}] Tu es concepteur d'épreuves du Brevet des collèges (DNB) français.
+Génère une question de type examen officiel pour la partie : "${part.part}" (barème : ${part.points} points).
+Matière : ${subjectHint}.
+${past}
+Inspire-toi des vrais sujets ci-dessus. La question doit être réaliste, précise, au niveau 3ème.
+Fournis aussi un document/texte support si la partie le nécessite.
+JSON:{"question":"...","document":"(texte ou données support, vide si pas nécessaire)","consignes":["consigne 1","consigne 2","consigne 3"],"bareme":["critère 1 (X pts)","critère 2 (X pts)"],"correction":"correction type détaillée","points_cles":["point 1","point 2","point 3"]}`;
+};
 const buildVeillePrompt=(subject)=>`Génère les 15 notions ABSOLUMENT essentielles à connaître la essentiels pour "${subject}". Programme officiel 3ème. Ce qui tombe TOUJOURS.
 JSON:{"notions":[{"titre":"...","contenu":"...","exemple":"...","astuces":"..."}]}`;
 const buildFichePrompt=(subject,chapter)=>`Génère une mini-fiche de 3 points CLÉS à retenir sur "${subject}"${chapter?` chapitre "${chapter}"`:""}. Ultra-concis, mnémotechnique si possible.
@@ -404,9 +515,15 @@ JSON:{"explication_erreur":"...","etymologie":"${addEtym?"si pertinent, sinon vi
 };
 const buildPlanningPrompt=(dateStr,daysLeft)=>{
   const phase=daysLeft>60?"FONDATIONS":daysLeft>21?"CIBLAGE":daysLeft>7?"INTENSIF":"FINAL";
-  return`Brevet: ${dateStr}. Jours restants: ${daysLeft}. Phase: ${phase}.
-Planning jour par jour. Matières: Mathématiques, Français, Histoire-Géo, SVT, Physique-Chimie, EMC, Technologie. Weekends légers.
-JSON:{"jours":[{"date":"DD/MM","dateISO":"YYYY-MM-DD","jour":"Lundi","sessions":[{"matiere":"...","chapitre":"...","duree":"20 min","exercice":"Quiz QCM"}]}]}`;
+  const nbJours=Math.min(daysLeft,30); // max 30 jours affichés
+  return`Tu génères un planning de révision pour le brevet 3ème.
+Brevet le : ${dateStr}. Jours restants : ${daysLeft}. Phase : ${phase}.
+Génère exactement ${nbJours} jours de planning à partir d'aujourd'hui.
+Matières : Mathématiques, Français, Histoire-Géo, SVT, Physique-Chimie, EMC, Technologie.
+Weekends : max 1-2 sessions. Jours de semaine : 2-3 sessions de 20 min.
+IMPORTANT : réponds UNIQUEMENT avec ce JSON valide, sans aucun texte avant ou après :
+{"jours":[{"date":"DD/MM","dateISO":"YYYY-MM-DD","jour":"Lundi","sessions":[{"matiere":"Mathématiques","chapitre":"Pythagore & Thalès","duree":"20 min","exercice":"Quiz QCM"}]}]}
+Génère au moins ${Math.min(nbJours,7)} jours avec des sessions.`;
 };
 const buildSvgPrompt=q=>`SVG simple (viewBox="0 0 220 180") pour: "${q}". stroke="#3B82F6" fill="none" strokeWidth="2", labels fill="#1E3A5F" fontSize="12". SVG uniquement.`;
 
@@ -655,9 +772,33 @@ const css=`
   .story-dot.active{background:#3B82F6;}
   .story-card{background:var(--surface);border:1.5px solid var(--border);border-radius:20px;padding:22px;min-height:280px;display:flex;flex-direction:column;box-shadow:0 4px 0 var(--border2);}
 
-  /* Exam */
-  .exam-timer{text-align:center;font-family:var(--font-d);font-size:30px;font-weight:800;color:#0C2340;margin-bottom:14px;}
-  .exam-timer.warn{color:#DC2626;animation:pulse .5s ease-in-out infinite;}
+  /* Exam v2 */
+  .exam-subject-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;}
+  @media(max-width:480px){.exam-subject-grid{grid-template-columns:1fr;}}
+  .exam-subject-card{background:var(--surface);border:1.5px solid var(--border);border-radius:18px;padding:18px 14px;cursor:pointer;text-align:center;transition:transform .18s cubic-bezier(.34,1.56,.64,1),box-shadow .18s;box-shadow:0 4px 0 var(--border2);position:relative;overflow:hidden;}
+  .exam-subject-card::before{content:'';position:absolute;inset:0;border-radius:17px;background:linear-gradient(180deg,rgba(255,255,255,.6) 0%,transparent 60%);pointer-events:none;}
+  .exam-subject-card:hover{transform:translateY(-4px);box-shadow:0 8px 0 var(--border2);}
+  .exam-subject-card:active{transform:translateY(3px) scale(.97)!important;box-shadow:0 1px 0 var(--border2)!important;}
+  .exam-duration-badge{display:inline-block;background:#EFF6FF;border:1.5px solid #BAD6F5;border-radius:20px;padding:3px 10px;font-size:11px;font-weight:700;color:#1D4ED8;margin-top:6px;}
+  .exam-part-header{background:linear-gradient(135deg,var(--bg2),var(--surface2));border:1.5px solid var(--border);border-radius:14px;padding:13px 15px;margin-bottom:14px;}
+  .exam-part-label{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);font-weight:700;margin-bottom:4px;}
+  .exam-part-title{font-family:var(--font-d);font-size:15px;font-weight:800;color:#0C2340;}
+  .exam-part-points{font-size:12px;color:#7C3AED;font-weight:600;margin-top:2px;}
+  .exam-document{background:#FFFBEB;border:1.5px solid #FDE68A;border-radius:12px;padding:13px;margin-bottom:12px;font-size:13px;line-height:1.75;color:#78350F;}
+  .exam-document-label{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:#92400E;font-weight:700;margin-bottom:6px;}
+  .exam-consigne{display:flex;gap:8px;padding:7px 10px;background:var(--bg2);border-radius:8px;margin-bottom:6px;font-size:13px;color:var(--text2);}
+  .exam-consigne-num{font-family:var(--font-d);font-weight:800;color:#2563EB;flex-shrink:0;}
+  .exam-bareme-item{font-size:11px;color:#6D28D9;background:#F5F3FF;border-radius:6px;padding:3px 8px;margin:3px 3px 0 0;display:inline-block;}
+  .exam-nav{display:flex;gap:8px;margin-bottom:14px;}
+  .exam-nav-dot{flex:1;height:6px;border-radius:999px;background:var(--bg2);transition:background .3s;}
+  .exam-nav-dot.done{background:#10B981;}
+  .exam-nav-dot.active{background:#3B82F6;}
+  .exam-mid-message{background:linear-gradient(135deg,#FEF3C7,#FDE68A);border:1.5px solid #FCD34D;border-radius:14px;padding:14px;margin-bottom:14px;text-align:center;}
+  .exam-result-part{background:var(--surface);border:1.5px solid var(--border);border-radius:14px;padding:14px;margin-bottom:10px;box-shadow:0 2px 0 var(--border2);}
+  .exam-result-part-title{font-family:var(--font-d);font-size:13px;font-weight:800;color:#0C2340;margin-bottom:8px;}
+  .exam-timer-big{text-align:center;margin-bottom:12px;}
+  .exam-timer-display{font-family:var(--font-d);font-size:38px;font-weight:800;letter-spacing:-1px;line-height:1;}
+  .exam-timer-label{font-size:11px;color:var(--muted);margin-top:3px;}
 
   /* Today widget */
   .today-widget{background:#EFF6FF;border:1.5px solid #BAD6F5;border-radius:14px;padding:14px;margin-bottom:14px;box-shadow:0 3px 0 #93C5E8;}
@@ -1240,23 +1381,364 @@ function StoriesMode({subject,chapter,isMix,onBack,onDone}){
   );
 }
 
-// ── Exam Mode ─────────────────────────────────────────────────────────────────
-function ExamMode({onBack}){
-  const[state,setState]=useState("loading");
-  const[questions,setQuestions]=useState([]);
-  const[idx,setIdx]=useState(0);
-  const[answers,setAnswers]=useState({});
-  const[timeLeft,setTimeLeft]=useState(30*60);
-  useEffect(()=>{withMinDelay(callClaude(buildExamPrompt()),900).then(d=>{setQuestions(d.questions||[]);setState("exam");}).catch(()=>setState("error"));},[]);
-  useEffect(()=>{if(state!=="exam")return;const t=setInterval(()=>setTimeLeft(v=>{if(v<=1){clearInterval(t);setState("done");return 0;}return v-1;}),1000);return()=>clearInterval(t);},[state]);
-  if(state==="loading")return<Spinner text="Préparation de l'examen…"/>;
-  if(state==="error")return<p className="err">Erreur.</p>;
-  const mm=String(Math.floor(timeLeft/60)).padStart(2,"0"),ss=String(timeLeft%60).padStart(2,"0");
-  const qcms=questions.filter(q=>q.type==="qcm");
-  const score=qcms.filter(q=>answers[questions.indexOf(q)]?.startsWith(q.answer)).length;
-  if(state==="done"||idx>=questions.length)return(<div className="score-wrap"><button className="btn-ghost" onClick={onBack}>← Retour</button><div style={{fontSize:48,marginBottom:12}}>🎓</div><div className="score-ring" style={{borderColor:"#3B82F6",color:"#3B82F6"}}>{score}/{qcms.length}</div><div className="score-message">Examen terminé !</div><div className="score-sub">QCM réussis · Questions ouvertes à auto-évaluer</div><button className="btn-cta" onClick={onBack}>Retour</button></div>);
-  const q=questions[idx];
-  return(<div><button className="btn-ghost" onClick={onBack}>← Arrêter</button><div className={`exam-timer${timeLeft<300?" warn":""}`}>⏱ {mm}:{ss}</div><div style={{display:"flex",justifyContent:"space-between",fontSize:12,color:"#5A85AA",fontWeight:600,marginBottom:10}}><span>Q{idx+1}/{questions.length}</span><span style={{background:SUBJECT_COLORS[q.matiere]||"#3B82F6",color:"#fff",padding:"2px 10px",borderRadius:20,fontSize:11,fontWeight:700}}>{q.matiere}</span></div><div className="question-card"><div className="q-label">{q.type==="qcm"?"QCM":"Question ouverte"}</div><div className="q-text">{q.question}</div></div>{q.type==="qcm"?(<div className="choices">{q.choices.map(c=>{const ans=answers[idx];let cls="choice-btn";if(ans){if(c.startsWith(q.answer))cls+=" correct";else if(c===ans)cls+=" wrong";}return<button key={c} className={cls} disabled={!!ans} onClick={()=>{setAnswers(a=>({...a,[idx]:c}));if(c.startsWith(q.answer)&&soundEnabled.value)playSound("correct");else if(soundEnabled.value)playSound("wrong");}}>{c}</button>;})} {answers[idx]&&<button className="btn-cta" style={{marginTop:10}} onClick={()=>setIdx(i=>i+1)}>Suivant →</button>}</div>):(<><textarea className="answer-area" placeholder="Rédige ta réponse…" value={answers[idx]||""} onChange={e=>setAnswers(a=>({...a,[idx]:e.target.value}))}/><button className="btn-cta" onClick={()=>{if(idx===questions.length-1)setState("done");else setIdx(i=>i+1);}}>{idx===questions.length-1?"Terminer":"Suivant →"}</button></>)}</div>);
+// ── Exam Mode v2 — Simulation Brevet Réelle ───────────────────────────────────
+function ExamMode({onBack, onStatsUpdate}){
+  const[phase, setPhase]=useState("pick"); // pick → brief → exam → result
+  const[examSubject, setExamSubject]=useState(null);
+  const[partIdx, setPartIdx]=useState(0);
+  const[parts, setParts]=useState([]); // questions générées par partie
+  const[answers, setAnswers]=useState({});
+  const[revealed, setRevealed]=useState({});
+  const[grades, setGrades]=useState({});
+  const[gradingIdx, setGradingIdx]=useState(null);
+  const[timeLeft, setTimeLeft]=useState(0);
+  const[loading, setLoading]=useState(false);
+  const[midMsg, setMidMsg]=useState(false);
+
+  const ex = EXAM_SUBJECTS.find(e=>e.id===examSubject);
+
+  // Timer
+  useEffect(()=>{
+    if(phase!=="exam")return;
+    const t=setInterval(()=>setTimeLeft(v=>{
+      if(v<=1){clearInterval(t);return 0;}
+      const half=Math.floor(ex.duration*60/2);
+      if(v===half)setMidMsg(true);
+      return v-1;
+    }),1000);
+    return()=>clearInterval(t);
+  },[phase]);
+
+  const startExam=async(subjectId)=>{
+    setExamSubject(subjectId);
+    const subject=EXAM_SUBJECTS.find(e=>e.id===subjectId);
+    setTimeLeft(subject.duration*60);
+    setPhase("brief");
+  };
+
+  const loadPart=async(idx)=>{
+    if(parts[idx])return; // déjà chargé
+    setLoading(true);
+    try{
+      const d=await withMinDelay(callClaude(buildRealExamPrompt(examSubject,idx),null,2000));
+      setParts(p=>{const n=[...p];n[idx]=d;return n;});
+    }catch{}
+    setLoading(false);
+  };
+
+  useEffect(()=>{
+    if(phase==="exam")loadPart(partIdx);
+  },[phase, partIdx]);
+
+  // Précharger la partie suivante
+  useEffect(()=>{
+    if(phase==="exam"&&partIdx<ex?.structure.length-1)
+      setTimeout(()=>loadPart(partIdx+1),3000);
+  },[partIdx, phase]);
+
+  const mm=String(Math.floor(timeLeft/60)).padStart(2,"0");
+  const ss2=String(timeLeft%60).padStart(2,"0");
+  const isWarn=timeLeft>0&&timeLeft<600;
+  const isOver=timeLeft===0;
+
+  const gradeAnswer=async(idx)=>{
+    const part=ex.structure[idx];
+    const q=parts[idx];
+    const ans=answers[idx]||"";
+    if(!ans.trim()||!q)return;
+    setGradingIdx(idx);
+    try{
+      const d=await callClaude(buildGradePrompt(q.question,ans,q.correction),null,1500);
+      setGrades(g=>({...g,[idx]:d}));
+    }catch{}
+    setGradingIdx(null);
+  };
+
+  const finishExam=()=>{
+    // XP selon les parties répondues
+    const answered=Object.keys(answers).filter(k=>answers[k]?.trim().length>10).length;
+    let s=updateStreak(getStats());
+    s=addSession(s,ex.label,answered,ex.structure.length,"exam");
+    const{updated}=addXP(s,answered*20,examSubject==="sciences"?"svt":examSubject);
+    saveStats(updated);
+    onStatsUpdate&&onStatsUpdate(updated);
+    setPhase("result");
+  };
+
+  // ── PICK ──
+  if(phase==="pick") return(
+    <div>
+      <button className="btn-ghost" onClick={onBack}>← Retour</button>
+      <div style={{marginBottom:20}}>
+        <div style={{fontFamily:"var(--font-d)",fontSize:22,fontWeight:800,color:"#0C2340",marginBottom:6}}>
+          🎓 Simulation d'examen
+        </div>
+        <p style={{fontSize:13,color:"var(--muted)",lineHeight:1.6}}>
+          Questions inspirées des <strong>vrais sujets du brevet</strong> (DNB 2019–2023). Chrono réel de l'épreuve. Choisis ta matière :
+        </p>
+      </div>
+      <div className="exam-subject-grid">
+        {EXAM_SUBJECTS.map(e=>(
+          <div key={e.id} className="exam-subject-card"
+            style={{borderColor:`${e.color}40`}}
+            onClick={()=>{playCardSelect();startExam(e.id);}}>
+            <div style={{fontSize:32,marginBottom:8}}>{e.icon}</div>
+            <div style={{fontFamily:"var(--font-d)",fontSize:14,fontWeight:800,color:"#0C2340",marginBottom:4}}>{e.label}</div>
+            <div style={{fontSize:11,color:"var(--muted)",marginBottom:6}}>{e.description}</div>
+            <div className="exam-duration-badge">⏱ {e.durationLabel}</div>
+          </div>
+        ))}
+      </div>
+      <div style={{background:"#F0FDF4",border:"1.5px solid #A7F3D0",borderRadius:12,padding:12,fontSize:12,color:"#065F46",lineHeight:1.6}}>
+        💡 Les questions s'appuient sur les thèmes réels des brevets 2019–2023. Tu peux interrompre à tout moment et reprendre plus tard.
+      </div>
+    </div>
+  );
+
+  // ── BRIEF ──
+  if(phase==="brief") return(
+    <div>
+      <button className="btn-ghost" onClick={()=>setPhase("pick")}>← Changer de matière</button>
+      <div style={{background:`${ex.color}12`,border:`1.5px solid ${ex.color}40`,borderRadius:20,padding:20,marginBottom:16,textAlign:"center"}}>
+        <div style={{fontSize:40,marginBottom:10}}>{ex.icon}</div>
+        <div style={{fontFamily:"var(--font-d)",fontSize:20,fontWeight:800,color:"#0C2340",marginBottom:6}}>{ex.label}</div>
+        <div className="exam-duration-badge" style={{fontSize:14,padding:"6px 16px",marginBottom:14}}>⏱ Durée réelle : {ex.durationLabel}</div>
+        <div style={{textAlign:"left",marginBottom:14}}>
+          <div className="section-title" style={{marginBottom:8}}>Structure de l'épreuve</div>
+          {ex.structure.map((p,i)=>(
+            <div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 10px",background:"var(--surface)",borderRadius:10,marginBottom:6,border:"1.5px solid var(--border)"}}>
+              <div style={{fontSize:13,color:"#0C2340",fontWeight:600}}>{p.part}</div>
+              <div style={{fontSize:12,color:"#7C3AED",fontWeight:700}}>{p.points} pts</div>
+            </div>
+          ))}
+        </div>
+        <div style={{background:"#FFFBEB",border:"1.5px solid #FDE68A",borderRadius:10,padding:10,fontSize:12,color:"#92400E",marginBottom:14,textAlign:"left"}}>
+          ⚠️ Une fois lancé, le chrono tourne. Lis bien chaque consigne avant de répondre.
+        </div>
+        <button className="btn-cta" onClick={()=>{playCTA();setPhase("exam");}}>
+          Commencer l'épreuve →
+        </button>
+      </div>
+    </div>
+  );
+
+  // ── EXAM ──
+  if(phase==="exam"){
+    const currentPart=ex.structure[partIdx];
+    const q=parts[partIdx];
+    const isLastPart=partIdx===ex.structure.length-1;
+
+    return(
+      <div>
+        {/* Timer */}
+        <div className="exam-timer-big">
+          <div className="exam-timer-display" style={{color:isWarn?"#DC2626":isOver?"#DC2626":"#0C2340"}}>
+            {isOver?"⏰ Temps écoulé !":
+             <>{mm}<span style={{animation:isWarn?"pulse .5s infinite":undefined}}>:{ss2}</span></>}
+          </div>
+          <div className="exam-timer-label">{ex.label} · {ex.durationLabel} · {ex.icon}</div>
+        </div>
+
+        {/* Barre de progression des parties */}
+        <div className="exam-nav" style={{marginBottom:10}}>
+          {ex.structure.map((_,i)=>(
+            <div key={i} className={"exam-nav-dot"+(i<partIdx?" done":i===partIdx?" active":"")}
+              style={{cursor:i<=partIdx?"pointer":"default"}}
+              onClick={()=>i<=partIdx&&setPartIdx(i)}/>
+          ))}
+        </div>
+        <div style={{fontSize:11,color:"var(--muted)",textAlign:"center",marginBottom:12}}>
+          Partie {partIdx+1}/{ex.structure.length} · Clique sur un point pour revenir en arrière
+        </div>
+
+        {/* Message mi-parcours */}
+        {midMsg&&(
+          <div className="exam-mid-message">
+            <div style={{fontSize:20,marginBottom:4}}>⏳</div>
+            <div style={{fontFamily:"var(--font-d)",fontSize:14,fontWeight:800,color:"#92400E"}}>Mi-temps !</div>
+            <div style={{fontSize:12,color:"#78350F",marginTop:3}}>Tu es à mi-chemin — gère bien ton temps pour les dernières parties.</div>
+            <button style={{marginTop:8,background:"none",border:"none",color:"#92400E",fontSize:12,cursor:"pointer",fontWeight:600}} onClick={()=>setMidMsg(false)}>Fermer ✕</button>
+          </div>
+        )}
+
+        {/* En-tête de partie */}
+        <div className="exam-part-header">
+          <div className="exam-part-label">{ex.label}</div>
+          <div className="exam-part-title">{currentPart.part}</div>
+          <div className="exam-part-points">Barème : {currentPart.points} points</div>
+        </div>
+
+        {loading&&!q&&<Spinner text={`Génération de la partie ${partIdx+1}…`}/>}
+
+        {q&&(
+          <>
+            {/* Document support */}
+            {q.document&&q.document.trim().length>5&&(
+              <div className="exam-document">
+                <div className="exam-document-label">📄 Document — Texte support</div>
+                {q.document}
+              </div>
+            )}
+
+            {/* Question */}
+            <div className="question-card">
+              <div className="q-label">Question — {currentPart.part}</div>
+              <div className="q-text">{q.question}</div>
+            </div>
+
+            {/* Consignes */}
+            {q.consignes?.length>0&&(
+              <div style={{marginBottom:12}}>
+                <div className="section-title" style={{marginBottom:6}}>Consignes</div>
+                {q.consignes.map((c,i)=>(
+                  <div key={i} className="exam-consigne">
+                    <span className="exam-consigne-num">{i+1}.</span>
+                    <span>{c}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Barème indicatif */}
+            {q.bareme?.length>0&&(
+              <div style={{marginBottom:12}}>
+                <div style={{fontSize:10,letterSpacing:2,textTransform:"uppercase",color:"#7C3AED",fontWeight:700,marginBottom:5}}>Barème indicatif</div>
+                {q.bareme.map((b,i)=><span key={i} className="exam-bareme-item">{b}</span>)}
+              </div>
+            )}
+
+            {/* Zone de réponse */}
+            {!revealed[partIdx]?(
+              <>
+                <textarea className="answer-area" style={{minHeight:160}}
+                  placeholder="Rédige ta réponse ici…"
+                  value={answers[partIdx]||""}
+                  onChange={e=>setAnswers(a=>({...a,[partIdx]:e.target.value}))}/>
+
+                <div style={{display:"flex",gap:8,marginBottom:10}}>
+                  <button className="btn-secondary" style={{flex:1}}
+                    onClick={()=>setRevealed(r=>({...r,[partIdx]:true}))}>
+                    Voir la correction
+                  </button>
+                  {!isLastPart?(
+                    <button className="btn-cta" style={{flex:1}}
+                      onClick={()=>{playCTA();setPartIdx(i=>i+1);}}>
+                      Partie suivante →
+                    </button>
+                  ):(
+                    <button className="btn-cta" style={{flex:1,background:"linear-gradient(180deg,#059669,#047857)"}}
+                      onClick={()=>{playCTA();finishExam();}}>
+                      Terminer 🎓
+                    </button>
+                  )}
+                </div>
+              </>
+            ):(
+              <>
+                {/* Correction */}
+                <div className="correction-card">
+                  <h3>📝 Correction type</h3>
+                  <div className="correction-text">{q.correction}</div>
+                  {q.points_cles?.length>0&&(
+                    <><div style={{fontSize:10,letterSpacing:2,textTransform:"uppercase",color:"#6D28D9",marginTop:12,marginBottom:6,fontWeight:700}}>Points clés</div>
+                    <div className="points-cles">{q.points_cles.map((p,i)=><div key={i} className="point">{p}</div>)}</div></>
+                  )}
+                </div>
+
+                {/* Notation IA */}
+                {answers[partIdx]?.trim().length>10&&!grades[partIdx]&&gradingIdx!==partIdx&&(
+                  <button className="btn-cta" style={{marginBottom:10,background:"linear-gradient(180deg,#059669,#047857)"}}
+                    onClick={()=>gradeAnswer(partIdx)}>
+                    🎓 Faire noter ma réponse par l'IA
+                  </button>
+                )}
+                {gradingIdx===partIdx&&<Spinner text="L'IA note ta réponse…"/>}
+                {grades[partIdx]&&(
+                  <div className="grade-card" style={{marginBottom:10}}>
+                    <div className="grade-score">{grades[partIdx].note}/{currentPart.points>20?20:10}</div>
+                    <div className="grade-comment">{grades[partIdx].commentaire}</div>
+                    {grades[partIdx].points_forts?.length>0&&(
+                      <><div className="grade-section">✅ Points forts</div>
+                      {grades[partIdx].points_forts.map((p,i)=><div key={i} className="point" style={{color:"#065F46"}}>{p}</div>)}</>
+                    )}
+                    {grades[partIdx].points_a_ameliorer?.length>0&&(
+                      <><div className="grade-section" style={{color:"#DC2626"}}>📌 À améliorer</div>
+                      {grades[partIdx].points_a_ameliorer.map((p,i)=><div key={i} className="point" style={{color:"#991B1B"}}>{p}</div>)}</>
+                    )}
+                  </div>
+                )}
+
+                <div style={{display:"flex",gap:8}}>
+                  <button className="btn-secondary" style={{flex:1}}
+                    onClick={()=>setRevealed(r=>({...r,[partIdx]:false}))}>
+                    ← Modifier ma réponse
+                  </button>
+                  {!isLastPart?(
+                    <button className="btn-cta" style={{flex:1}}
+                      onClick={()=>{playCTA();setPartIdx(i=>i+1);}}>
+                      Partie suivante →
+                    </button>
+                  ):(
+                    <button className="btn-cta" style={{flex:1,background:"linear-gradient(180deg,#059669,#047857)"}}
+                      onClick={()=>{playCTA();finishExam();}}>
+                      Terminer 🎓
+                    </button>
+                  )}
+                </div>
+              </>
+            )}
+          </>
+        )}
+      </div>
+    );
+  }
+
+  // ── RESULT ──
+  if(phase==="result"){
+    const answered=ex.structure.filter((_,i)=>answers[i]?.trim().length>10).length;
+    const graded=Object.keys(grades).length;
+    return(
+      <div className="score-wrap">
+        <div style={{fontSize:48,marginBottom:8}}>{ex.icon}</div>
+        <div className="score-ring" style={{borderColor:ex.color,color:ex.color}}>
+          {answered}/{ex.structure.length}
+        </div>
+        <div className="score-message">Épreuve terminée !</div>
+        <div className="score-sub">{ex.label} · {ex.durationLabel}</div>
+        <div className="xp-toast">+{answered*20} XP gagnés !</div>
+
+        {graded>0&&(
+          <div style={{marginBottom:16,textAlign:"left"}}>
+            <div className="section-title" style={{marginBottom:8}}>Tes notes par partie</div>
+            {ex.structure.map((p,i)=>(
+              grades[i]?(
+                <div key={i} className="exam-result-part">
+                  <div className="exam-result-part-title">{p.part}</div>
+                  <div style={{display:"flex",alignItems:"center",gap:10}}>
+                    <div style={{fontFamily:"var(--font-d)",fontSize:22,fontWeight:800,color:ex.color}}>{grades[i].note}/10</div>
+                    <div style={{fontSize:12,color:"var(--muted)",lineHeight:1.5,flex:1}}>{grades[i].commentaire}</div>
+                  </div>
+                </div>
+              ):null
+            ))}
+          </div>
+        )}
+
+        {graded===0&&answered>0&&(
+          <div style={{background:"#EFF6FF",border:"1.5px solid #BAD6F5",borderRadius:12,padding:12,marginBottom:14,fontSize:13,color:"#1E3A8A"}}>
+            💡 Tu peux retourner dans chaque partie et demander à l'IA de noter ta réponse !
+          </div>
+        )}
+
+        <button className="btn-cta" style={{marginBottom:10}} onClick={()=>{playCardSelect();setPhase("pick");setPartIdx(0);setParts([]);setAnswers({});setRevealed({});setGrades({});}}>
+          Changer de matière →
+        </button>
+        <button className="btn-secondary" onClick={onBack}>Retour à l'accueil</button>
+      </div>
+    );
+  }
+
+  return null;
 }
 
 // ── Quiz Mode ─────────────────────────────────────────────────────────────────
@@ -1499,11 +1981,13 @@ function LongMode({subject,chapter,isMix,onBack,onStatsUpdate,showFiche=false}){
 // ── Planning Screen ───────────────────────────────────────────────────────────
 function PlanningScreen({onBack,onStartSession,onPlanningUpdate}){
   const saved=loadPlanning();
+  const savedPlanning=saved?.planning;
+  const hasValidPlanning=Array.isArray(savedPlanning)&&savedPlanning.length>0;
   const[date,setDate]=useState(saved?.brevetDate||"");
   const[weeks,setWeeks]=useState(8);
   const[useWeeks,setUseWeeks]=useState(!saved?.brevetDate);
-  const[state,setState]=useState(saved?"done":"form");
-  const[planning,setPlanning]=useState(saved?.planning||null);
+  const[state,setState]=useState(hasValidPlanning?"done":"form");
+  const[planning,setPlanning]=useState(hasValidPlanning?savedPlanning:null);
   const[restDays,setRestDays]=useState([]);
 
   const generate=async()=>{
@@ -1511,7 +1995,15 @@ function PlanningScreen({onBack,onStartSession,onPlanningUpdate}){
     if(useWeeks){daysLeft=weeks*7;const d=new Date(Date.now()+daysLeft*86400000);dateStr=d.toLocaleDateString("fr-FR",{day:"numeric",month:"long",year:"numeric"});}
     else{const obj=new Date(date);daysLeft=Math.ceil((obj-new Date())/86400000);dateStr=obj.toLocaleDateString("fr-FR",{day:"numeric",month:"long",year:"numeric"});}
     setState("loading");
-    try{const d=await withMinDelay(callClaude(buildPlanningPrompt(dateStr,daysLeft),null,3000),600);const j=d.jours||[];setPlanning(j);savePlanning(j,date||"");setState("done");onPlanningUpdate&&onPlanningUpdate();}
+    try{
+      const d=await withMinDelay(callClaude(buildPlanningPrompt(dateStr,daysLeft),null,3000),600);
+      const j=d.jours||d.planning||d.days||[];
+      if(!Array.isArray(j)||j.length===0)throw new Error("Planning vide");
+      setPlanning(j);
+      savePlanning(j,date||"");
+      setState("done");
+      onPlanningUpdate&&onPlanningUpdate();
+    }
     catch{setState("error");}
   };
 
@@ -1542,7 +2034,15 @@ function PlanningScreen({onBack,onStartSession,onPlanningUpdate}){
           <button className="btn-cta" disabled={!useWeeks&&!date} onClick={generate}>Générer mon planning →</button>
         </div>
       )}
-      {state==="done"&&planning&&(
+      {state==="done"&&(!planning||planning.length===0)&&(
+        <div style={{background:"#FEF2F2",border:"1.5px solid #FECACA",borderRadius:14,padding:16,textAlign:"center"}}>
+          <div style={{fontSize:24,marginBottom:8}}>😕</div>
+          <div style={{fontFamily:"var(--font-d)",fontSize:15,fontWeight:800,color:"#991B1B",marginBottom:6}}>Le planning n'a pas pu être chargé</div>
+          <div style={{fontSize:13,color:"#7F1D1D",marginBottom:14}}>L'IA n'a pas retourné de données valides. Réessaie !</div>
+          <button className="btn-cta" onClick={()=>setState("form")}>↩ Réessayer</button>
+        </div>
+      )}
+      {state==="done"&&planning&&planning.length>0&&(
         <>
           <div className="planning-header">
             <div className="planning-title">📅 Planning Brevet</div>
@@ -1730,7 +2230,7 @@ export default function App(){
     if(mode==="quiz")return<QuizMode subject={subject} chapter={chapter} isMix={isMix} count={qCount} showFiche={showFiche} onBack={goHome} onStatsUpdate={refresh}/>;
     if(mode==="long")return<LongMode subject={subject} chapter={chapter} isMix={isMix} showFiche={showFiche} onBack={goHome} onStatsUpdate={refresh}/>;
     if(mode==="stories")return<StoriesMode subject={subject} chapter={chapter} isMix={isMix} onBack={goHome} onDone={(sc,tot)=>{let s=updateStreak(getStats());s=addSession(s,isMix?"Mix":subject?.label,sc,tot,"stories");const{updated}=addXP(s,sc*8,subject?.id||"mix");saveStats(updated);refresh(updated);goHome();}}/>;
-    if(mode==="exam")return<ExamMode onBack={goHome}/>;
+    if(mode==="exam")return<ExamMode onBack={goHome} onStatsUpdate={refresh}/>;
     if(mode==="veille")return<VeilleMode onBack={goHome} onStatsUpdate={refresh}/>;
     return null;
   };
