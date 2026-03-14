@@ -784,7 +784,7 @@ Brevet le : ${dateStr}. Jours restants : ${daysLeft}. Phase : ${phase}.
 Génère EXACTEMENT 7 jours à partir du ${from} (inclus).
 Matières : Mathématiques, Français, Histoire-Géo, SVT, Physique-Chimie, EMC, Technologie.
 Weekends : max 1-2 sessions légères. Jours de semaine : 2-3 sessions de 20 min chacune.${profileHint}
-Adapte les matières à la phase : ${phase==="FONDATIONS"?"révisions larges":phase==="CIBLAGE"?"chapitres fréquents au brevet":phase==="INTENSIF"?"sujets les plus probables":phase==="FINAL"?"fiches synthèse uniquement"}.
+  Adapte les matieres a la phase indiquee.
 RÉPONDS UNIQUEMENT avec ce JSON valide, rien d'autre :
 {"jours":[{"date":"DD/MM","dateISO":"YYYY-MM-DD","jour":"Lundi","sessions":[{"matiere":"Mathématiques","chapitre":"Pythagore & Thalès","duree":"20 min","exercice":"Quiz QCM"}]}]}`;
 };
