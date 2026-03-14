@@ -44,6 +44,91 @@ const BADGES = [
 ];
 
 // ── DIFFICULTÉ ───────────────────────────────────────────────────────────────
+// ── THÈMES ───────────────────────────────────────────────────────────────────
+const THEMES = [
+  {
+    id: "bleu",
+    label: "Océan",
+    emoji: "🌊",
+    vars: {
+      "--bg":"#EBF5FF","--bg2":"#DBEAFE","--surface":"#FFFFFF","--surface2":"#F0F7FF",
+      "--border":"#BAD6F5","--border2":"#93C5E8","--text":"#0C2340","--text2":"#1E4976",
+      "--muted":"#5A85AA","--accent":"#2563EB","--cta1":"#3B82F6","--cta2":"#1D4ED8",
+      "--cta-shadow":"#1E40AF","--tab-active":"#2563EB",
+    }
+  },
+  {
+    id: "violet",
+    label: "Cosmos",
+    emoji: "🌌",
+    vars: {
+      "--bg":"#F5F3FF","--bg2":"#EDE9FE","--surface":"#FFFFFF","--surface2":"#FAF5FF",
+      "--border":"#C4B5FD","--border2":"#A78BFA","--text":"#1E1B4B","--text2":"#3730A3",
+      "--muted":"#6B7280","--accent":"#7C3AED","--cta1":"#8B5CF6","--cta2":"#6D28D9",
+      "--cta-shadow":"#4C1D95","--tab-active":"#7C3AED",
+    }
+  },
+  {
+    id: "vert",
+    label: "Forêt",
+    emoji: "🌿",
+    vars: {
+      "--bg":"#F0FDF4","--bg2":"#DCFCE7","--surface":"#FFFFFF","--surface2":"#F0FDF4",
+      "--border":"#A7F3D0","--border2":"#6EE7B7","--text":"#052E16","--text2":"#065F46",
+      "--muted":"#6B7280","--accent":"#059669","--cta1":"#10B981","--cta2":"#047857",
+      "--cta-shadow":"#065F46","--tab-active":"#059669",
+    }
+  },
+  {
+    id: "peche",
+    label: "Soleil",
+    emoji: "🌅",
+    vars: {
+      "--bg":"#FFF7ED","--bg2":"#FEF3C7","--surface":"#FFFFFF","--surface2":"#FFFBEB",
+      "--border":"#FDE68A","--border2":"#FCD34D","--text":"#292524","--text2":"#78350F",
+      "--muted":"#9CA3AF","--accent":"#D97706","--cta1":"#F59E0B","--cta2":"#D97706",
+      "--cta-shadow":"#B45309","--tab-active":"#D97706",
+    }
+  },
+  {
+    id: "rose",
+    label: "Sakura",
+    emoji: "🌸",
+    vars: {
+      "--bg":"#FFF1F2","--bg2":"#FFE4E6","--surface":"#FFFFFF","--surface2":"#FFF1F2",
+      "--border":"#FECDD3","--border2":"#FDA4AF","--text":"#1F0010","--text2":"#9F1239",
+      "--muted":"#9CA3AF","--accent":"#DB2777","--cta1":"#EC4899","--cta2":"#BE185D",
+      "--cta-shadow":"#9D174D","--tab-active":"#DB2777",
+    }
+  },
+  {
+    id: "sombre",
+    label: "Nuit",
+    emoji: "🌙",
+    vars: {
+      "--bg":"#0F172A","--bg2":"#1E293B","--surface":"#1E293B","--surface2":"#263244",
+      "--border":"#334155","--border2":"#475569","--text":"#F1F5F9","--text2":"#CBD5E1",
+      "--muted":"#94A3B8","--accent":"#60A5FA","--cta1":"#3B82F6","--cta2":"#1D4ED8",
+      "--cta-shadow":"#1E3A8A","--tab-active":"#3B82F6",
+    }
+  },
+];
+
+function getSavedTheme(){ try{ return localStorage.getItem("brevet_theme")||"auto"; }catch{ return "auto"; } }
+function saveTheme(id){ try{ localStorage.setItem("brevet_theme",id); }catch{} }
+
+function getSystemDark(){ return window.matchMedia?.("(prefers-color-scheme: dark)").matches||false; }
+
+function applyTheme(themeId){
+  const isDark = themeId==="auto" ? getSystemDark() : themeId==="sombre";
+  const id = themeId==="auto" ? (isDark?"sombre":"bleu") : themeId;
+  const theme = THEMES.find(t=>t.id===id)||THEMES[0];
+  const root = document.documentElement;
+  Object.entries(theme.vars).forEach(([k,v])=>root.style.setProperty(k,v));
+  // Dark mode body background
+  document.body.style.background = theme.vars["--bg"];
+}
+
 const DIFFICULTY_LEVELS = [
   { id:"assez_bien",    label:"Assez Bien",   emoji:"🟢", range:"10–12",  desc:"Questions de base, formulations simples",          prompt:"niveau facile, questions directes sans piège, vocabulaire simple" },
   { id:"bien",          label:"Bien",          emoji:"🔵", range:"12–14",  desc:"Questions standard, niveau vrai brevet",            prompt:"niveau standard du brevet DNB, questions classiques" },
@@ -60,6 +145,7 @@ function getDifficultyPrompt(){
   const d=DIFFICULTY_LEVELS.find(l=>l.id===getDifficulty())||DIFFICULTY_LEVELS[1];
   return d.prompt;
 }
+
 const LOADING_MESSAGES = [
   "Je prépare tes questions…","L'IA réfléchit pour toi…","On prépare tes questions…",
   "Je cherche les meilleures questions…","Presque prêt…","Je calibre la difficulté…",
@@ -164,6 +250,77 @@ function importStats(file,onSuccess,onError){
 }
 
 // ── Difficulty Selector ───────────────────────────────────────────────────────
+// ── Theme Selector ────────────────────────────────────────────────────────────
+function ThemeSelector(){
+  const[current,setCurrent]=useState(()=>getSavedTheme());
+
+  const select=(id)=>{
+    playChip();
+    saveTheme(id);
+    setCurrent(id);
+    applyTheme(id);
+  };
+
+  return(
+    <div style={{background:"var(--surface)",border:"1.5px solid var(--border)",borderRadius:16,padding:16,marginBottom:12,boxShadow:"0 3px 0 var(--border2)"}}>
+      <div className="section-title" style={{marginBottom:4}}>🎨 Thème de l'application</div>
+      <p style={{fontSize:12,color:"var(--muted)",marginBottom:14,lineHeight:1.6}}>
+        Personnalise les couleurs de l'app. Mode auto suit ton téléphone/Mac.
+      </p>
+
+      {/* Auto mode */}
+      <div onClick={()=>select("auto")} style={{
+        border:`1.5px solid ${current==="auto"?"var(--accent)":"var(--border)"}`,
+        borderRadius:12,padding:"10px 14px",cursor:"pointer",marginBottom:10,
+        background:current==="auto"?"var(--bg2)":"var(--surface)",
+        display:"flex",alignItems:"center",gap:10,
+        boxShadow:current==="auto"?"0 3px 0 var(--border2)":"none",
+        transition:"all .15s",
+      }}>
+        <span style={{fontSize:22}}>✨</span>
+        <div>
+          <div style={{fontFamily:"var(--font-d)",fontSize:13,fontWeight:800,color:"var(--text)"}}>Auto</div>
+          <div style={{fontSize:11,color:"var(--muted)"}}>Suit le mode de ton appareil (clair/sombre)</div>
+        </div>
+        {current==="auto"&&<span style={{marginLeft:"auto",color:"var(--accent)",fontWeight:700,fontSize:13}}>✓</span>}
+      </div>
+
+      {/* Theme grid */}
+      <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8}}>
+        {THEMES.map(t=>{
+          const isSelected=current===t.id;
+          // Preview swatch
+          const bg=t.vars["--bg"];
+          const surface=t.vars["--surface"];
+          const accent=t.vars["--accent"];
+          const text=t.vars["--text"];
+          return(
+            <div key={t.id} onClick={()=>select(t.id)} style={{
+              border:`2px solid ${isSelected?accent:"var(--border)"}`,
+              borderRadius:14,padding:"10px 8px",cursor:"pointer",
+              background:surface,textAlign:"center",
+              boxShadow:isSelected?`0 4px 0 ${accent}50`:"0 2px 0 var(--border2)",
+              transform:isSelected?"translateY(-2px)":"none",
+              transition:"all .15s cubic-bezier(.34,1.2,.64,1)",
+              position:"relative",overflow:"hidden",
+            }}>
+              {/* Mini preview */}
+              <div style={{background:bg,borderRadius:8,padding:"6px 4px",marginBottom:6,border:`1px solid ${accent}30`}}>
+                <div style={{background:accent,borderRadius:4,height:6,width:"60%",margin:"0 auto 4px"}}/>
+                <div style={{background:surface,borderRadius:3,height:4,width:"80%",margin:"0 auto 2px",border:`1px solid ${accent}40`}}/>
+                <div style={{background:surface,borderRadius:3,height:4,width:"65%",margin:"0 auto",border:`1px solid ${accent}40`}}/>
+              </div>
+              <div style={{fontSize:16,marginBottom:2}}>{t.emoji}</div>
+              <div style={{fontFamily:"var(--font-d)",fontSize:11,fontWeight:800,color:text}}>{t.label}</div>
+              {isSelected&&<div style={{position:"absolute",top:5,right:5,background:accent,color:"#fff",borderRadius:"50%",width:16,height:16,display:"flex",alignItems:"center",justifyContent:"center",fontSize:9,fontWeight:800}}>✓</div>}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function DifficultySelector(){
   const[current,setCurrent]=useState(()=>getDifficulty());
   const select=(id)=>{
@@ -681,7 +838,7 @@ const css=`
   .dash-big{font-family:var(--font-d);font-size:30px;font-weight:800;color:#0C2340;line-height:1;}
   .dash-sub{font-size:12px;color:var(--muted);margin-top:3px;}
   .xp-bar{height:6px;background:var(--bg2);border-radius:999px;margin-top:8px;overflow:hidden;}
-  .xp-fill{height:100%;background:linear-gradient(90deg,#3B82F6,#1D4ED8);border-radius:999px;transition:width .6s;}
+  .xp-fill{height:100%;background:linear-gradient(90deg,var(--cta1),var(--cta2));border-radius:999px;transition:width .6s;}
   .badges-wrap{display:flex;flex-wrap:wrap;gap:6px;margin-top:7px;}
   .badge-chip{background:var(--bg2);border:1px solid var(--border);border-radius:20px;padding:4px 10px;font-size:12px;}
   .weak-list{display:flex;flex-direction:column;gap:6px;margin-top:7px;}
@@ -694,7 +851,7 @@ const css=`
   /* Tabs */
   .home-tabs{display:flex;gap:4px;margin-bottom:14px;background:var(--bg2);border-radius:14px;padding:4px;border:1.5px solid var(--border);overflow-x:auto;}
   .home-tab{flex:1;min-width:56px;padding:9px 5px;border-radius:10px;border:none;background:transparent;color:var(--muted);font-family:var(--font-b);font-size:11px;font-weight:600;cursor:pointer;transition:all .2s;display:flex;align-items:center;justify-content:center;gap:3px;white-space:nowrap;}
-  .home-tab.active{background:#2563EB;color:#fff;box-shadow:0 3px 8px rgba(37,99,235,.3);}
+  .home-tab.active{background:var(--tab-active);color:#fff;box-shadow:0 3px 8px rgba(0,0,0,.2);}
   .section-title{font-size:11px;letter-spacing:2px;text-transform:uppercase;color:#2563EB;margin-bottom:12px;font-weight:700;}
 
   /* Quick 2min button */
@@ -757,10 +914,10 @@ const css=`
   .mini-fiche-point-text{color:#5B21B6;}
 
   /* Buttons */
-  .btn-cta{display:block;width:100%;padding:15px 20px;border-radius:14px;border:none;background:linear-gradient(180deg,#3B82F6,#1D4ED8);color:#fff;font-family:var(--font-d);font-size:15px;font-weight:800;cursor:pointer;transition:transform .16s cubic-bezier(.34,1.56,.64,1),box-shadow .16s;box-shadow:0 6px 0 #1E40AF,0 8px 24px rgba(29,78,216,.3);user-select:none;position:relative;overflow:hidden;}
+  .btn-cta{display:block;width:100%;padding:15px 20px;border-radius:14px;border:none;background:linear-gradient(180deg,var(--cta1),var(--cta2));color:#fff;font-family:var(--font-d);font-size:15px;font-weight:800;cursor:pointer;transition:transform .16s cubic-bezier(.34,1.56,.64,1),box-shadow .16s;box-shadow:0 6px 0 var(--cta-shadow),0 8px 24px rgba(0,0,0,.2);user-select:none;position:relative;overflow:hidden;}
   .btn-cta::before{content:'';position:absolute;top:0;left:0;right:0;height:50%;background:rgba(255,255,255,.15);border-radius:14px 14px 0 0;pointer-events:none;}
-  .btn-cta:hover{transform:translateY(-2px);box-shadow:0 8px 0 #1E3A8A,0 12px 32px rgba(29,78,216,.4);}
-  .btn-cta:active{transform:translateY(5px)!important;box-shadow:0 1px 0 #1E40AF!important;transition-duration:.08s!important;}
+  .btn-cta:hover{transform:translateY(-2px);box-shadow:0 8px 0 var(--cta-shadow),0 12px 32px rgba(0,0,0,.25);}
+  .btn-cta:active{transform:translateY(5px)!important;box-shadow:0 1px 0 var(--cta-shadow)!important;transition-duration:.08s!important;}
   .btn-cta:disabled{background:var(--bg2);color:var(--muted);box-shadow:0 3px 0 var(--border)!important;cursor:not-allowed;transform:none!important;}
   .btn-ghost{display:inline-flex;align-items:center;gap:6px;background:var(--surface);border:1.5px solid var(--border);color:var(--text2);padding:9px 14px;border-radius:10px;font-family:var(--font-b);font-size:13px;font-weight:600;cursor:pointer;margin-bottom:18px;transition:transform .14s cubic-bezier(.34,1.56,.64,1),box-shadow .14s;box-shadow:0 3px 0 var(--border2);user-select:none;}
   .btn-ghost:hover{transform:translateY(-2px);box-shadow:0 5px 0 var(--border2);background:var(--bg2);}
@@ -781,8 +938,8 @@ const css=`
   .progress-wrap{margin-bottom:16px;}
   .progress-info{display:flex;justify-content:space-between;font-size:12px;color:var(--muted);margin-bottom:6px;font-weight:600;}
   .progress-bar{height:8px;background:var(--bg2);border-radius:999px;}
-  .progress-fill{height:100%;background:linear-gradient(90deg,#3B82F6,#1D4ED8);border-radius:999px;transition:width .5s;position:relative;}
-  .progress-fill::after{content:'';position:absolute;right:-5px;top:50%;transform:translateY(-50%);width:14px;height:14px;background:#fff;border-radius:50%;border:3px solid #3B82F6;}
+  .progress-fill{height:100%;background:linear-gradient(90deg,var(--cta1),var(--cta2));border-radius:999px;transition:width .5s;position:relative;}
+  .progress-fill::after{content:'';position:absolute;right:-5px;top:50%;transform:translateY(-50%);width:14px;height:14px;background:var(--surface);border-radius:50%;border:3px solid var(--cta1);}
 
   /* Question */
   .question-card{background:var(--surface);border:1.5px solid var(--border);border-radius:20px;padding:20px;margin-bottom:12px;box-shadow:0 4px 0 var(--border2);position:relative;overflow:hidden;}
@@ -2390,6 +2547,17 @@ export default function App(){
   const[subScreen,setSubScreen]=useState(null);
   const[planningKey,setPlanningKey]=useState(0);
 
+  // Appliquer le thème au démarrage + écouter les changements système
+  useEffect(()=>{
+    const saved=getSavedTheme();
+    applyTheme(saved);
+    // Écouter les changements de mode clair/sombre du système
+    const mq=window.matchMedia?.("(prefers-color-scheme: dark)");
+    const onChange=()=>{ if(getSavedTheme()==="auto") applyTheme("auto"); };
+    mq?.addEventListener("change",onChange);
+    return()=>mq?.removeEventListener("change",onChange);
+  },[]);
+
   const goHome=()=>{setScreen("home");setSubject(null);setChapter(null);setIsMix(false);setMode(null);setMixMode(null);setSubScreen(null);};
   const refresh=s=>setStats(s||getStats());
 
@@ -2556,6 +2724,7 @@ export default function App(){
                     ))}
                   </div>
                   <div className="divider"/>
+                  <ThemeSelector/>
                   <DifficultySelector/>
                   <BackupPanel stats={stats} onStatsRefresh={()=>setStats(getStats())}/>
                   <div className="divider"/>
