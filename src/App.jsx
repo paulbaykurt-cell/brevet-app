@@ -36,11 +36,11 @@ const BADGES = [
   {id:"maths100",icon:"📐",label:"Maître des Maths",   check:s=>(s.subjectXP?.maths||0)>=100},
   {id:"hist100", icon:"🌍",label:"As de l'Histoire",   check:s=>(s.subjectXP?.histoire||0)>=100},
   {id:"sess10",  icon:"🎓",label:"10 sessions",        check:s=>s.totalSessions>=10},
-  {id:"veille",  icon:"🌙",label:"La veille du brevet",check:s=>s.badges?.includes("veille")||false},
+  {id:"veille",  icon:"🎯",label:"Les essentiels",check:s=>s.badges?.includes("veille")||false},
 ];
 
 const LOADING_MESSAGES = [
-  "Je prépare tes questions…","L'IA réfléchit pour toi…","Génération en cours…",
+  "Je prépare tes questions…","L'IA réfléchit pour toi…","On prépare tes questions…",
   "Je cherche les meilleures questions…","Presque prêt…","Je calibre la difficulté…",
   "Questions du brevet en approche…","Concentration maximale…",
 ];
@@ -144,7 +144,7 @@ const buildLongPrompt=(subject,chapter)=>{
   return`Génère 1 question ouverte type brevet sur "${subject}"${chapter?` chapitre "${chapter}"`:" (sujets les plus probables)"} élève 3ème.\nJSON:{"question":"...","context":"...","correction":"...","points_cles":["...","...","..."]}`;
 };
 const buildExamPrompt=()=>`Génère sujet brevet complet. 1 question par matière parmi: ${MIX_LIST}. Mélange QCM et ouvertes.\nJSON:{"questions":[{"type":"qcm","matiere":"...","question":"...","choices":["A. ...","B. ...","C. ...","D. ..."],"answer":"A","explanation":"..."},{"type":"open","matiere":"...","question":"...","correction":"..."}]}`;
-const buildVeillePrompt=(subject)=>`Génère les 15 notions ABSOLUMENT essentielles à connaître la veille du brevet pour "${subject}". Programme officiel 3ème. Ce qui tombe TOUJOURS.
+const buildVeillePrompt=(subject)=>`Génère les 15 notions ABSOLUMENT essentielles à connaître la essentiels pour "${subject}". Programme officiel 3ème. Ce qui tombe TOUJOURS.
 JSON:{"notions":[{"titre":"...","contenu":"...","exemple":"...","astuces":"..."}]}`;
 const buildFichePrompt=(subject,chapter)=>`Génère une mini-fiche de 3 points CLÉS à retenir sur "${subject}"${chapter?` chapitre "${chapter}"`:""}. Ultra-concis, mnémotechnique si possible.
 JSON:{"points":[{"titre":"...","contenu":"..."}]}`;
@@ -163,7 +163,12 @@ Points forts: ${strong.join(", ")||"pas encore évalués"}.
 Donne des conseils précis, motivants, et un plan pour les 3 prochains jours.
 JSON:{"message_motivant":"...","analyse":"...","plan_3jours":[{"jour":"Jour 1","focus":"...","action":"..."},{"jour":"Jour 2","focus":"...","action":"..."},{"jour":"Jour 3","focus":"...","action":"..."}],"conseil_final":"..."}`;
 };
-const buildErrorPrompt=(q,w,c)=>`Élève répondu "${w}" à: "${q}". Bonne réponse: "${c}". Explique pourquoi c'est faux en 3 phrases simples.\nJSON:{"explication_erreur":"..."}`;
+const buildErrorPrompt=(q,w,c,subjectId)=>{
+  const addEtym=subjectId==="francais"||subjectId==="histoire"||subjectId==="svt"||subjectId==="emc";
+  return`Élève de 3ème a répondu "${w}" à cette question : "${q}". Bonne réponse : "${c}".
+Explique en 2-3 phrases simples et directes pourquoi c'est faux — style détendu, pas trop soutenu.${addEtym?"\nSi un mot clé de la question a une étymologie intéressante (grec, latin…), ajoute UNE phrase courte du style : \"Au fait : 'cellule' vient du latin cellula (petite chambre).\" Sinon laisse le champ vide.":""}
+JSON:{"explication_erreur":"...","etymologie":"${addEtym?"si pertinent, sinon vide":""}"}`;
+};
 const buildPlanningPrompt=(dateStr,daysLeft)=>{
   const phase=daysLeft>60?"FONDATIONS":daysLeft>21?"CIBLAGE":daysLeft>7?"INTENSIF":"FINAL";
   return`Brevet: ${dateStr}. Jours restants: ${daysLeft}. Phase: ${phase}.
@@ -476,6 +481,8 @@ const css=`
   .calc-op:hover{background:#DBEAFE;}
   .calc-eq{background:linear-gradient(180deg,#3B82F6,#1D4ED8);color:#fff;border-color:#1D4ED8;}
   .calc-clear{background:#FEF2F2;color:#991B1B;border-color:#FECACA;}
+  .calc-fn{background:#F0FDF4;color:#065F46;border-color:#A7F3D0;font-size:12px;}
+  .calc-fn:hover{background:#DCFCE7;}
   .notes-area{width:100%;min-height:160px;background:var(--bg2);border:1.5px solid var(--border);border-radius:9px;padding:11px;color:#0C2340;font-family:var(--font-b);font-size:13px;line-height:1.7;resize:none;outline:none;}
   .notes-area:focus{border-color:#3B82F6;}
   .notes-area::placeholder{color:var(--muted);}
@@ -496,10 +503,109 @@ function Spinner({text}){
   return <div className="loading"><div className="spin-ring"/><p>{msg}</p></div>;
 }
 function Calculator({onClose}){
-  const[d,setD]=useState("0");const[p,setP]=useState(null);const[op,setOp]=useState(null);const[r,setR]=useState(false);
-  const press=v=>{if(v==="C"){setD("0");setP(null);setOp(null);setR(false);return;}if(v==="±"){setD(x=>String(-parseFloat(x)));return;}if(v==="%"){setD(x=>String(parseFloat(x)/100));return;}if(["+","-","×","÷"].includes(v)){setP(parseFloat(d));setOp(v);setR(true);return;}if(v==="="){if(op&&p!==null){const c=parseFloat(d);const res=op==="+"?p+c:op==="-"?p-c:op==="×"?p*c:c!==0?p/c:"Err";setD(String(typeof res==="number"?parseFloat(res.toFixed(10)):res));setP(null);setOp(null);setR(true);}return;}if(v==="."){if(r){setD("0.");setR(false);return;}if(!d.includes("."))setD(x=>x+".");return;}if(r){setD(String(v));setR(false);}else setD(x=>x==="0"?String(v):x+v);};
-  const btns=[["C","±","%","÷"],[7,8,9,"×"],[4,5,6,"-"],[1,2,3,"+"],[0,".","="]];
-  return(<div className="panel"><div className="panel-header"><span className="panel-title">🧮 Calculatrice</span><button className="panel-close" onClick={onClose}>✕</button></div><div className="calc-display">{d}</div><div className="calc-grid">{btns.flat().map((b,i)=>{const cls="calc-btn "+(b==="C"?"calc-clear":b==="="?"calc-eq":["+","-","×","÷","%","±"].includes(String(b))?"calc-op":"calc-num");return<button key={i} className={cls} style={b===0?{gridColumn:"span 2"}:{}} onClick={()=>press(b)}>{b}</button>;})}</div></div>);
+  const[display,setDisplay]=useState("0");
+  const[expr,setExpr]=useState("");
+  const[justCalc,setJustCalc]=useState(false);
+  const[degMode,setDegMode]=useState(true);
+
+  const toRad=x=>degMode?x*Math.PI/180:x;
+
+  const pressNum=v=>{
+    if(justCalc){setDisplay(String(v));setExpr(String(v));setJustCalc(false);}
+    else{setDisplay(d=>d==="0"?String(v):d+v);setExpr(e=>e+v);}
+  };
+  const pressDot=()=>{
+    if(justCalc){setDisplay("0.");setExpr("0.");setJustCalc(false);return;}
+    const parts=display.split(/[\+\-\×\÷]/);
+    if(!parts[parts.length-1].includes(".")){setDisplay(d=>d+".");setExpr(e=>e+".");}
+  };
+  const pressOp=v=>{
+    setJustCalc(false);
+    setDisplay(d=>d+v);setExpr(e=>e+v);
+  };
+  const pressFunc=v=>{
+    const cur=parseFloat(display)||0;
+    let res;
+    if(v==="sin")res=Math.sin(toRad(cur));
+    else if(v==="cos")res=Math.cos(toRad(cur));
+    else if(v==="tan")res=Math.tan(toRad(cur));
+    else if(v==="√")res=Math.sqrt(cur);
+    else if(v==="x²")res=cur*cur;
+    else if(v==="log")res=Math.log10(cur);
+    else if(v==="ln")res=Math.log(cur);
+    else if(v==="1/x")res=cur!==0?1/cur:"Err";
+    else if(v==="π"){setDisplay(d=>d==="0"?String(Math.PI):d+String(Math.PI));setExpr(e=>e+Math.PI);return;}
+    const r=typeof res==="number"?parseFloat(res.toFixed(10)):res;
+    setDisplay(String(r));setExpr(String(r));setJustCalc(true);
+  };
+  const pressEq=()=>{
+    try{
+      const safeExpr=expr.replace(/×/g,"*").replace(/÷/g,"/");
+      // eslint-disable-next-line no-new-func
+      const result=new Function("return "+safeExpr)();
+      const r=typeof result==="number"?parseFloat(result.toFixed(10)):"Err";
+      setDisplay(String(r));setExpr(String(r));setJustCalc(true);
+    }catch{setDisplay("Err");setExpr("");}
+  };
+  const pressC=()=>{setDisplay("0");setExpr("");setJustCalc(false);};
+  const pressDel=()=>{
+    if(justCalc){pressC();return;}
+    setDisplay(d=>d.length>1?d.slice(0,-1):"0");
+    setExpr(e=>e.length>1?e.slice(0,-1):"");
+  };
+
+  const Btn=({label,action,type="num",span=1})=>{
+    const cls="calc-btn "+(type==="clear"?"calc-clear":type==="eq"?"calc-eq":type==="op"?"calc-op":type==="fn"?"calc-fn":"calc-num");
+    return<button className={cls} style={span>1?{gridColumn:`span ${span}`}:{}} onClick={action}>{label}</button>;
+  };
+
+  return(
+    <div className="panel" style={{width:320}}>
+      <div className="panel-header">
+        <span className="panel-title">🧮 Calculatrice scientifique</span>
+        <button className="panel-close" onClick={onClose}>✕</button>
+      </div>
+      <div className="calc-display" style={{fontSize:display.length>12?14:20,minHeight:52}}>
+        <div style={{fontSize:10,color:"#5A85AA",marginBottom:2}}>{expr||" "}</div>
+        {display}
+      </div>
+      <div style={{display:"flex",gap:6,marginBottom:6}}>
+        <button className="calc-btn calc-op" style={{flex:1,fontSize:11}} onClick={()=>setDegMode(true)}>{degMode?"✓ ":""}DEG</button>
+        <button className="calc-btn calc-op" style={{flex:1,fontSize:11}} onClick={()=>setDegMode(false)}>{!degMode?"✓ ":""}RAD</button>
+      </div>
+      <div className="calc-grid" style={{gridTemplateColumns:"repeat(4,1fr)"}}>
+        <Btn label="sin"  action={()=>pressFunc("sin")}  type="fn"/>
+        <Btn label="cos"  action={()=>pressFunc("cos")}  type="fn"/>
+        <Btn label="tan"  action={()=>pressFunc("tan")}  type="fn"/>
+        <Btn label="√"    action={()=>pressFunc("√")}    type="fn"/>
+        <Btn label="log"  action={()=>pressFunc("log")}  type="fn"/>
+        <Btn label="ln"   action={()=>pressFunc("ln")}   type="fn"/>
+        <Btn label="x²"   action={()=>pressFunc("x²")}  type="fn"/>
+        <Btn label="1/x"  action={()=>pressFunc("1/x")}  type="fn"/>
+        <Btn label="π"    action={()=>pressFunc("π")}    type="fn"/>
+        <Btn label="("    action={()=>pressOp("(")}      type="op"/>
+        <Btn label=")"    action={()=>pressOp(")")}      type="op"/>
+        <Btn label="÷"    action={()=>pressOp("÷")}      type="op"/>
+        <Btn label="7"    action={()=>pressNum(7)}/>
+        <Btn label="8"    action={()=>pressNum(8)}/>
+        <Btn label="9"    action={()=>pressNum(9)}/>
+        <Btn label="×"    action={()=>pressOp("×")}      type="op"/>
+        <Btn label="4"    action={()=>pressNum(4)}/>
+        <Btn label="5"    action={()=>pressNum(5)}/>
+        <Btn label="6"    action={()=>pressNum(6)}/>
+        <Btn label="−"    action={()=>pressOp("-")}      type="op"/>
+        <Btn label="1"    action={()=>pressNum(1)}/>
+        <Btn label="2"    action={()=>pressNum(2)}/>
+        <Btn label="3"    action={()=>pressNum(3)}/>
+        <Btn label="+"    action={()=>pressOp("+")}      type="op"/>
+        <Btn label="⌫"    action={pressDel}              type="clear"/>
+        <Btn label="0"    action={()=>pressNum(0)}/>
+        <Btn label="."    action={pressDot}/>
+        <Btn label="="    action={pressEq}               type="eq"/>
+        <Btn label="C"    action={pressC}                type="clear" span={4}/>
+      </div>
+    </div>
+  );
 }
 function Notes({onClose}){
   const[t,setT]=useState(()=>{try{return sessionStorage.getItem("notes")||"";}catch{return"";}});
@@ -590,13 +696,13 @@ function TodayWidget({onStartSession}){
 // ── Mind Map ──────────────────────────────────────────────────────────────────
 function MindMap({stats}){
   const[open,setOpen]=useState(null);
-  return(<div><div className="section-title" style={{marginBottom:8}}>🗺️ Carte de progression</div><p style={{fontSize:12,color:"#5A85AA",marginBottom:14}}>🟢 Maîtrisé · 🟡 Fragile · 🔴 À retravailler · ⚪ Non révisé</p><div className="mindmap-grid">{SUBJECTS.map(s=>{const xp=stats.subjectXP?.[s.id]||0;const weak=stats.weakChapters?.[s.id]||{};const lv=getLevel(xp);const isOpen=open===s.id;return(<div key={s.id} className="mindmap-subject" style={isOpen?{borderColor:s.color}:{}} onClick={()=>setOpen(isOpen?null:s.id)}><div style={{display:"flex",alignItems:"center",gap:8,marginBottom:isOpen?10:0}}><span style={{fontSize:20}}>{s.icon}</span><div><div style={{fontFamily:"var(--font-d)",fontSize:12,fontWeight:800,color:"#0C2340"}}>{s.label}</div><div style={{fontSize:10,fontWeight:600,color:lv.color}}>{lv.label} · {xp} XP</div></div></div>{isOpen&&(CHAPTERS[s.id]||[]).map(ch=>{const n=weak[ch]||0;const dot=xp===0?"#D1D5DB":n>=3?"#DC2626":n>=1?"#D97706":"#059669";const bg=xp===0?"#F9FAFB":n>=3?"#FEF2F2":n>=1?"#FFFBEB":"#F0FDF4";return<div key={ch} className="mindmap-ch-row" style={{background:bg}}><span style={{fontSize:11,color:"#0C2340"}}>{ch}</span><div className="mastery-dot" style={{background:dot}}/></div>;})}{!isOpen&&<div style={{fontSize:11,color:"#5A85AA",marginTop:4}}>Clique pour voir →</div>}</div>);})}</div></div>);
+  return(<div><div className="section-title" style={{marginBottom:8}}>🗺️ Carte de progression</div><p style={{fontSize:12,color:"#5A85AA",marginBottom:14}}>🟢 Maîtrisé · 🟡 Fragile · 🔴 À retravailler · ⚪ Non révisé</p><div className="mindmap-grid">{SUBJECTS.map(s=>{const xp=stats.subjectXP?.[s.id]||0;const weak=stats.weakChapters?.[s.id]||{};const lv=getLevel(xp);const isOpen=open===s.id;return(<div key={s.id} className="mindmap-subject" style={isOpen?{borderColor:s.color}:{}} onClick={()=>setOpen(isOpen?null:s.id)}><div style={{display:"flex",alignItems:"center",gap:8,marginBottom:isOpen?10:0}}><span style={{fontSize:20}}>{s.icon}</span><div><div style={{fontFamily:"var(--font-d)",fontSize:12,fontWeight:800,color:"#0C2340"}}>{s.label}</div><div style={{fontSize:10,fontWeight:600,color:lv.color}}>{lv.label} · {xp} XP</div></div></div>{isOpen&&(CHAPTERS[s.id]||[]).map(ch=>{const n=weak[ch]||0;const dot=xp===0?"#D1D5DB":n>=3?"#DC2626":n>=1?"#D97706":"#059669";const bg=xp===0?"#F9FAFB":n>=3?"#FEF2F2":n>=1?"#FFFBEB":"#F0FDF4";return<div key={ch} className="mindmap-ch-row" style={{background:bg}}><span style={{fontSize:11,color:"#0C2340"}}>{ch}</span><div className="mastery-dot" style={{background:dot}}/></div>;})}{!isOpen&&<div style={{fontSize:11,color:"#5A85AA",marginTop:4}}>Clique pour voir les chapitres →</div>}</div>);})}</div></div>);
 }
 
 // ── Session History ───────────────────────────────────────────────────────────
 function SessionHistory({stats}){
   const hist=stats.sessionHistory||[];
-  if(!hist.length)return<p style={{textAlign:"center",color:"var(--muted)",fontSize:13,padding:"20px 0"}}>Aucune session encore. Lance ton premier quiz !</p>;
+  if(!hist.length)return<p style={{textAlign:"center",color:"var(--muted)",fontSize:13,padding:"20px 0"}}>Rien pour l'instant — lance ton premier quiz et les stats apparaîtront ici !</p>;
   return(<div><div className="section-title">📊 Historique ({hist.length} sessions)</div><div className="history-list">{hist.map((h,i)=>{const color=h.score>=h.total*.8?"#059669":h.score>=h.total*.5?"#D97706":"#DC2626";return(<div key={i} className="history-item"><div className="hist-score" style={{color}}>{h.score}/{h.total||"?"}</div><div className="hist-info"><div className="hist-subject">{h.subjectLabel||"Mix"} {h.mode==="long"?"· Question longue":""}</div><div className="hist-date">{h.date}</div></div><div className="hist-xp">+{h.xp||0} XP</div></div>);})}</div></div>);
 }
 
@@ -653,8 +759,8 @@ function VeilleMode({onBack,onStatsUpdate}){
   if(step==="pick")return(
     <div>
       <button className="btn-ghost" onClick={onBack}>← Retour</button>
-      <div className="section-title">🌙 La veille du brevet</div>
-      <p style={{fontSize:13,color:"var(--muted)",marginBottom:16,lineHeight:1.6}}>Les 15 notions ABSOLUMENT essentielles à connaître pour chaque matière. Parfait pour le soir avant le brevet.</p>
+      <div className="section-title">🎯 Les essentiels</div>
+      <p style={{fontSize:13,color:"var(--muted)",marginBottom:16,lineHeight:1.6}}>Ce qui tombe vraiment au brevet — les 15 points clés par matière. Parfait pour réviser en 10 minutes !</p>
       <div className="subject-grid">
         {SUBJECTS.filter(s=>s.id!=="anglais").map(s=>(
           <div key={s.id} className="subject-card" onClick={()=>launch(s)}>
@@ -666,7 +772,7 @@ function VeilleMode({onBack,onStatsUpdate}){
     </div>
   );
 
-  if(state==="loading")return<><button className="btn-ghost" onClick={onBack}>← Retour</button><Spinner text={`Préparation de la fiche ${subject?.label}…`}/></>;
+  if(state==="loading")return<><button className="btn-ghost" onClick={onBack}>← Retour</button><Spinner text={`Chargement des essentiels ${subject?.label}…`}/></>;
   if(state==="error")return<><button className="btn-ghost" onClick={onBack}>← Retour</button><p className="err">Erreur. Réessaie !</p></>;
 
   return(
@@ -675,8 +781,8 @@ function VeilleMode({onBack,onStatsUpdate}){
       <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:16}}>
         <span style={{fontSize:28}}>{subject?.icon}</span>
         <div>
-          <div className="section-title" style={{marginBottom:2}}>🌙 La veille du brevet</div>
-          <div style={{fontFamily:"var(--font-d)",fontSize:16,fontWeight:800,color:"#0C2340"}}>{subject?.label} — 15 notions essentielles</div>
+          <div className="section-title" style={{marginBottom:2}}>🎯 Les essentiels</div>
+          <div style={{fontFamily:"var(--font-d)",fontSize:16,fontWeight:800,color:"#0C2340"}}>{subject?.label} — L'essentiel à savoir</div>
         </div>
       </div>
       {notions.map((n,i)=>(
@@ -791,6 +897,7 @@ function QuizMode({subject,chapter,isMix,count,onBack,onStatsUpdate,showFiche=fa
   const[score,setScore]=useState(0);
   const[newBadges,setNewBadges]=useState([]);
   const[errorExplain,setErrorExplain]=useState(null);
+  const[etymology,setEtymology]=useState(null);
   const[loadingExplain,setLoadingExplain]=useState(false);
   const nextRef=useRef(null);
   const isGeo=subject?.id==="maths"&&GEO_CHAPTERS.includes(chapter);
@@ -831,19 +938,23 @@ function QuizMode({subject,chapter,isMix,count,onBack,onStatsUpdate,showFiche=fa
       saveStats(updated);setNewBadges(nb);
       onStatsUpdate&&onStatsUpdate(updated);
       setPhase("done");
-    }else{setIdx(i=>i+1);setSelected(null);setErrorExplain(null);}
+    }else{setIdx(i=>i+1);setSelected(null);setErrorExplain(null);setEtymology(null);}
   };
 
   const askExplain=async()=>{
     setLoadingExplain(true);
-    try{const d=await callClaude(buildErrorPrompt(q.question,selected,q.answer));setErrorExplain(d.explication_erreur);}
+    try{
+      const d=await callClaude(buildErrorPrompt(q.question,selected,q.answer,subject?.id||""));
+      setErrorExplain(d.explication_erreur);
+      if(d.etymologie&&d.etymologie.trim().length>3)setEtymology(d.etymologie);
+    }
     catch{setErrorExplain("Impossible de charger.");}
     setLoadingExplain(false);
   };
 
   if(phase==="fiche")return<MiniFiche subject={subject?.label} chapter={chapter} onContinue={()=>setPhase("loading")} onSkip={()=>setPhase("loading")}/>;
-  if(phase==="loading")return<><Spinner/><FloatTools showCalc={subject?.id==="maths"}/></>;
-  if(phase==="error")return<p className="err">Une erreur est survenue. Réessaie !</p>;
+  if(phase==="loading")return<><Spinner/><FloatTools showCalc={subject?.id==="maths"||subject?.id==="physique"}/></>;
+  if(phase==="error")return<p className="err">Aïe, un souci technique — réessaie !</p>;
 
   const q=questions[idx];
   const isLast=idx===questions.length-1;
@@ -855,7 +966,7 @@ function QuizMode({subject,chapter,isMix,count,onBack,onStatsUpdate,showFiche=fa
     <div className="score-wrap">
       <button className="btn-ghost" onClick={onBack}>← Retour</button>
       <div className="score-ring" style={{borderColor:scoreColor,color:scoreColor}}>{score}/{questions.length}</div>
-      <div className="score-message">{score>=questions.length*.8?"🎉 Excellent !":score>=questions.length*.5?"👍 Pas mal !":"💪 Continue !"}</div>
+      <div className="score-message">{score>=questions.length*.8?"🎉 Trop bien !":score>=questions.length*.5?"👍 Bien joué !":"💪 Accroche-toi, ça vient !"}</div>
       <div className="score-sub">{isMix?"🎲 Mix Brevet":`${subject?.icon} ${subject?.label}${chapter?` · ${chapter}`:""}`}</div>
       <div className="xp-toast">+{xpEarned} XP gagnés !</div>
       {score<questions.length*.5&&(
@@ -864,7 +975,7 @@ function QuizMode({subject,chapter,isMix,count,onBack,onStatsUpdate,showFiche=fa
         </div>
       )}
       {newBadges.map(bid=>{const b=BADGES.find(x=>x.id===bid);return b?<div key={bid} className="new-badge-toast">🏅 Nouveau badge : {b.icon} {b.label}</div>:null;})}
-      <button className="btn-cta" onClick={onBack}>Recommencer ↩</button>
+      <button className="btn-cta" onClick={onBack}>Encore une fois ↩</button>
     </div>
   );
 
@@ -888,9 +999,10 @@ function QuizMode({subject,chapter,isMix,count,onBack,onStatsUpdate,showFiche=fa
         {isWrong&&!errorExplain&&!loadingExplain&&<button className="btn-secondary" style={{marginBottom:10}} onClick={askExplain}>🤔 Pourquoi ma réponse était fausse ?</button>}
         {loadingExplain&&<p style={{textAlign:"center",fontSize:12,color:"#3B82F6",marginBottom:10}}>Analyse…</p>}
         {errorExplain&&<div className="error-explain"><strong>🔍 Comprendre l'erreur</strong>{errorExplain}</div>}
+        {etymology&&<div style={{background:"#FFF7ED",border:"1.5px solid #FED7AA",borderRadius:10,padding:"8px 12px",marginBottom:10,fontSize:12,color:"#92400E"}}><strong style={{display:"block",fontSize:10,letterSpacing:2,textTransform:"uppercase",marginBottom:3}}>📚 Étymologie</strong>{etymology}</div>}
         <button className="btn-cta" onClick={handleNext}>{isLast?"Voir mon score →":"Question suivante →"}</button>
       </>}
-      <FloatTools showCalc={subject?.id==="maths"}/>
+      <FloatTools showCalc={subject?.id==="maths"||subject?.id==="physique"}/>
     </div>
   );
 }
@@ -932,8 +1044,8 @@ function LongMode({subject,chapter,isMix,onBack,onStatsUpdate,showFiche=false}){
   };
 
   if(phase==="fiche")return<MiniFiche subject={subject?.label} chapter={chapter} onContinue={()=>setPhase("loading")} onSkip={()=>setPhase("loading")}/>;
-  if(phase==="loading")return<><Spinner/><FloatTools showCalc={subject?.id==="maths"}/></>;
-  if(phase==="error")return<p className="err">Une erreur est survenue. Réessaie !</p>;
+  if(phase==="loading")return<><Spinner/><FloatTools showCalc={subject?.id==="maths"||subject?.id==="physique"}/></>;
+  if(phase==="error")return<p className="err">Aïe, un souci technique — réessaie !</p>;
 
   return(
     <div>
@@ -955,7 +1067,7 @@ function LongMode({subject,chapter,isMix,onBack,onStatsUpdate,showFiche=false}){
       )}
       {!revealed?(
         <>
-          <textarea className="answer-area" placeholder={isDev?"Rédige ton développement (intro, développement, conclusion)…":"Écris ta réponse ici…"} value={answer} onChange={e=>setAnswer(e.target.value)}/>
+          <textarea className="answer-area" placeholder={isDev?"Écris ton développement ici — intro, arguments, conclusion…":"Écris ta réponse ici…"} value={answer} onChange={e=>setAnswer(e.target.value)}/>
           {answer.trim().length>=10&&!evalScore&&(
             <div className="self-eval">
               <div className="self-eval-label">🤔 Avant de voir la correction — tu penses avoir répondu…</div>
@@ -967,7 +1079,7 @@ function LongMode({subject,chapter,isMix,onBack,onStatsUpdate,showFiche=false}){
             </div>
           )}
           <button className="btn-cta" onClick={handleReveal} disabled={answer.trim().length<10||evalScore===null}>
-            {evalScore===null&&answer.trim().length>=10?"Évalue-toi d'abord ↑":"Voir la correction"}
+            {evalScore===null&&answer.trim().length>=10?"Évalue-toi d'abord ↑":"Voir la correction →"}
           </button>
           {answer.length>0&&answer.trim().length<10&&<p className="hint">Rédige une réponse un peu plus longue !</p>}
         </>
@@ -1001,7 +1113,7 @@ function LongMode({subject,chapter,isMix,onBack,onStatsUpdate,showFiche=false}){
           <button className="btn-cta" onClick={onBack}>Nouvelle question →</button>
         </>
       )}
-      <FloatTools showCalc={subject?.id==="maths"}/>
+      <FloatTools showCalc={subject?.id==="maths"||subject?.id==="physique"}/>
     </div>
   );
 }
@@ -1152,7 +1264,7 @@ function SetupScreen({subject,onStart,onBack}){
           <label className="sound-toggle" style={{marginBottom:16}}>
             <input type="checkbox" checked={showFiche} onChange={e=>setShowFiche(e.target.checked)}/> Afficher mini-fiche avant de commencer
           </label>
-          <button className="btn-cta" disabled={!canStart} onClick={()=>canStart&&onStart(trainingType==="chapter"?chapter:null,mode,qCount,showFiche)}>C'est parti ! →</button>
+          <button className="btn-cta" disabled={!canStart} onClick={()=>canStart&&onStart(trainingType==="chapter"?chapter:null,mode,qCount,showFiche)}>C'est parti 🚀</button>
         </>
       )}
     </div>
@@ -1234,7 +1346,7 @@ export default function App(){
                       {id:"mix-quiz",icon:"🎲",label:"Mix Quiz",desc:"5 QCM toutes matières"},
                       {id:"mix-long",icon:"✍️",label:"Question longue",desc:"Façon brevet"},
                       {id:"exam",icon:"🎓",label:"Simulation examen",desc:"30 min chrono"},
-                      {id:"veille",icon:"🌙",label:"La veille",desc:"15 notions essentielles"},
+                      {id:"veille",icon:"🎯",label:"Les essentiels",desc:"L'essentiel à savoir"},
                     ].map(m=>(
                       <div key={m.id} className="mode-card" onClick={()=>{
                         if(m.id==="exam"){setMode("exam");setScreen("play");return;}
@@ -1277,7 +1389,7 @@ export default function App(){
                       {id:"quiz",icon:"⚡",label:"Quiz",desc:"QCM"},
                       {id:"long",icon:"✍️",label:"Question Longue",desc:"1 question ouverte"},
                       {id:"stories",icon:"📱",label:"Stories",desc:"Swipe !"},
-                      {id:"veille",icon:"🌙",label:"La veille",desc:"15 notions essentielles"},
+                      {id:"veille",icon:"🎯",label:"Les essentiels",desc:"L'essentiel à savoir"},
                     ].map(m=>(
                       <div key={m.id} className="mode-card" style={mixMode===m.id?{borderColor:"#3B82F6",background:"#DBEAFE",boxShadow:"0 8px 0 #93C5FD",transform:"translateY(-4px)"}:{}} onClick={()=>setMixMode(m.id)}>
                         <div className="mode-icon">{m.icon}</div><div className="mode-label">{m.label}</div><div className="mode-desc">{m.desc}</div>
@@ -1292,7 +1404,7 @@ export default function App(){
                     if(!mixMode)return;
                     if(mixMode==="veille"){setMode("veille");setScreen("play");return;}
                     setIsMix(true);setSubject(null);setChapter(null);setMode(mixMode);setShowFiche(false);setScreen("play");
-                  }}>C'est parti ! →</button>
+                  }}>C'est parti 🚀</button>
                 </div>
               )}
 
@@ -1316,7 +1428,7 @@ export default function App(){
                   <div className="mode-grid">
                     {[
                       {id:"planning",icon:"📅",label:"Mon Planning",desc:"Planning intelligent"},
-                      {id:"veille",icon:"🌙",label:"La veille du brevet",desc:"15 notions essentielles"},
+                      {id:"veille",icon:"🎯",label:"Les essentiels",desc:"L'essentiel à savoir"},
                       {id:"exam",icon:"🎓",label:"Simulation examen",desc:"30 min chrono"},
                       {id:"summary",icon:"🧠",label:"Résumé IA",desc:"Analyse personnalisée"},
                     ].map(m=>(
@@ -1335,7 +1447,7 @@ export default function App(){
                   <label className="sound-toggle" style={{marginBottom:8}}>
                     <input type="checkbox" defaultChecked onChange={e=>{soundEnabled.value=e.target.checked;}}/> Sons de feedback activés
                   </label>
-                  <button className="btn-danger" onClick={()=>{if(window.confirm("Réinitialiser toutes les stats ? (XP, streak, badges…) Cette action est irréversible.")){localStorage.removeItem("brevet_v3");setStats({...EMPTY});}}}>
+                  <button className="btn-danger" onClick={()=>{if(window.confirm("Tu veux vraiment tout effacer ? (XP, streak, badges…) Impossible de revenir en arrière !")){localStorage.removeItem("brevet_v3");setStats({...EMPTY});}}}>
                     🗑️ Réinitialiser mes stats
                   </button>
                 </>
