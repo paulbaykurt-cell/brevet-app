@@ -60,6 +60,7 @@ function getDifficultyPrompt(){
   const d=DIFFICULTY_LEVELS.find(l=>l.id===getDifficulty())||DIFFICULTY_LEVELS[1];
   return d.prompt;
 }
+const LOADING_MESSAGES = [
   "Je prépare tes questions…","L'IA réfléchit pour toi…","On prépare tes questions…",
   "Je cherche les meilleures questions…","Presque prêt…","Je calibre la difficulté…",
   "Questions du brevet en approche…","Concentration maximale…",
