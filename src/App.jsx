@@ -26,17 +26,21 @@ const MIX_LIST = SUBJECTS.filter(s=>s.id!=="anglais").map(s=>s.label).join(", ")
 const SUBJECT_COLORS = {"Mathématiques":"#3B82F6","Français":"#7C3AED","Histoire-Géo":"#059669","SVT":"#D97706","Physique-Chimie":"#DC2626","Anglais":"#DB2777","EMC":"#0891B2","Technologie":"#EA580C"};
 
 const BADGES = [
-  {id:"first",   icon:"🎯",label:"Premier Quiz",       check:s=>s.totalSessions>=1},
-  {id:"streak3", icon:"🔥",label:"3 jours de suite",   check:s=>s.streak>=3},
-  {id:"streak7", icon:"🌟",label:"Une semaine !",      check:s=>s.streak>=7},
-  {id:"xp100",   icon:"💎",label:"100 XP",             check:s=>s.xp>=100},
-  {id:"xp500",   icon:"🏆",label:"500 XP",             check:s=>s.xp>=500},
-  {id:"perfect", icon:"⭐",label:"Quiz parfait",       check:s=>s.bestScore>=5},
-  {id:"rainbow", icon:"🌈",label:"Toutes les matières",check:s=>Object.keys(s.subjectXP||{}).length>=7},
-  {id:"maths100",icon:"📐",label:"Maître des Maths",   check:s=>(s.subjectXP?.maths||0)>=100},
-  {id:"hist100", icon:"🌍",label:"As de l'Histoire",   check:s=>(s.subjectXP?.histoire||0)>=100},
-  {id:"sess10",  icon:"🎓",label:"10 sessions",        check:s=>s.totalSessions>=10},
-  {id:"veille",  icon:"🎯",label:"Les essentiels",check:s=>s.badges?.includes("veille")||false},
+  {id:"first",   icon:"🎯",label:"Premier Quiz",        desc:"Tu as lancé ta première session de révision.",          hint:"Lance un quiz",                          check:s=>s.totalSessions>=1},
+  {id:"streak3", icon:"🔥",label:"3 jours de suite",    desc:"Tu as révisé 3 jours consécutifs. La régularité paye !", hint:"Reviens 3 jours d'affilée",              check:s=>s.streak>=3},
+  {id:"streak7", icon:"🌟",label:"Une semaine !",        desc:"7 jours de révision sans interruption. Impressionnant !", hint:"Reviens 7 jours d'affilée",            check:s=>s.streak>=7},
+  {id:"xp100",   icon:"💎",label:"100 XP",               desc:"Tu as accumulé 100 points d'expérience.",               hint:"Atteins 100 XP",                         check:s=>s.xp>=100},
+  {id:"xp500",   icon:"🏆",label:"500 XP",               desc:"500 XP — tu es sur la bonne voie pour le brevet !",     hint:"Atteins 500 XP",                         check:s=>s.xp>=500},
+  {id:"perfect", icon:"⭐",label:"Quiz parfait",          desc:"5/5 dans un quiz. Tout bon, aucune erreur !",           hint:"Fais un quiz sans faute",                check:s=>s.bestScore>=5},
+  {id:"rainbow", icon:"🌈",label:"Toutes les matières",  desc:"Tu as révisé dans toutes les matières au moins une fois.",hint:"Fais au moins 1 quiz dans 7 matières",  check:s=>Object.keys(s.subjectXP||{}).length>=7},
+  {id:"maths100",icon:"📐",label:"Maître des Maths",     desc:"100 XP obtenus en Mathématiques. Pythagore serait fier.",hint:"Cumule 100 XP en Maths",                check:s=>(s.subjectXP?.maths||0)>=100},
+  {id:"hist100", icon:"🌍",label:"As de l'Histoire",     desc:"100 XP en Histoire-Géo. Tu maîtrises le passé !",       hint:"Cumule 100 XP en Histoire-Géo",          check:s=>(s.subjectXP?.histoire||0)>=100},
+  {id:"sess10",  icon:"🎓",label:"10 sessions",          desc:"10 sessions complètes — la persévérance c'est toi.",    hint:"Complète 10 sessions",                   check:s=>s.totalSessions>=10},
+  {id:"veille",  icon:"🌙",label:"Les essentiels",        desc:"Tu as consulté les notions essentielles avant le brevet.",hint:"Utilise le mode Les essentiels",        check:s=>s.badges?.includes("veille")||false},
+  {id:"sess25",  icon:"🚀",label:"25 sessions",          desc:"25 sessions — tu es un(e) vrai(e) champion(ne) du brevet !", hint:"Complète 25 sessions",               check:s=>s.totalSessions>=25},
+  {id:"xp1000",  icon:"👑",label:"1000 XP",              desc:"1000 XP ! Le sommet de la progression.",                hint:"Atteins 1000 XP",                        check:s=>s.xp>=1000},
+  {id:"svt100",  icon:"🔬",label:"Expert SVT",           desc:"100 XP en SVT. Les sciences n'ont plus de secrets pour toi.", hint:"Cumule 100 XP en SVT",              check:s=>(s.subjectXP?.svt||0)>=100},
+  {id:"phys100", icon:"⚗️", label:"Expert Physique",     desc:"100 XP en Physique-Chimie. Einstein approuve.",         hint:"Cumule 100 XP en Physique-Chimie",       check:s=>(s.subjectXP?.physique||0)>=100},
 ];
 
 const LOADING_MESSAGES = [
@@ -210,31 +214,128 @@ function clearSeenQuestions(subjectId){
 }
 
 // ── SOUND (Web Audio API) ─────────────────────────────────────────────────────
-function playClick(){
-  try{
-    const ctx=new(window.AudioContext||window.webkitAudioContext)();
-    const osc=ctx.createOscillator();
-    const gain=ctx.createGain();
-    osc.connect(gain);gain.connect(ctx.destination);
-    osc.frequency.setValueAtTime(800,ctx.currentTime);
-    osc.frequency.exponentialRampToValueAtTime(600,ctx.currentTime+0.06);
-    gain.gain.setValueAtTime(0.08,ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+0.07);
-    osc.start();osc.stop(ctx.currentTime+0.08);
-  }catch{}
+// ── SONS ──────────────────────────────────────────────────────────────────────
+function getAudioCtx(){
+  try{return new(window.AudioContext||window.webkitAudioContext)();}catch{return null;}
 }
 
+// Tab nav : tick léger et précis, type "interface macOS"
+function playClick(){
+  if(!soundEnabled.value)return;
+  const ctx=getAudioCtx();if(!ctx)return;
+  const buf=ctx.createBuffer(1,ctx.sampleRate*0.04,ctx.sampleRate);
+  const data=buf.getChannelData(0);
+  for(let i=0;i<data.length;i++){
+    const t=i/ctx.sampleRate;
+    data[i]=Math.sin(2*Math.PI*1200*t)*Math.exp(-t*120)*0.3;
+  }
+  const src=ctx.createBufferSource();src.buffer=buf;
+  const gain=ctx.createGain();gain.gain.setValueAtTime(0.6,0);
+  src.connect(gain);gain.connect(ctx.destination);src.start();
+}
+
+// Carte matière : "thock" satisfaisant, grave et mat
+function playCardSelect(){
+  if(!soundEnabled.value)return;
+  const ctx=getAudioCtx();if(!ctx)return;
+  const buf=ctx.createBuffer(1,ctx.sampleRate*0.12,ctx.sampleRate);
+  const data=buf.getChannelData(0);
+  for(let i=0;i<data.length;i++){
+    const t=i/ctx.sampleRate;
+    const f=180*Math.exp(-t*15);
+    data[i]=(Math.sin(2*Math.PI*f*t)+Math.sin(2*Math.PI*f*1.6*t)*0.3)*Math.exp(-t*35)*0.4;
+  }
+  const src=ctx.createBufferSource();src.buffer=buf;
+  const gain=ctx.createGain();gain.gain.setValueAtTime(0.7,0);
+  src.connect(gain);gain.connect(ctx.destination);src.start();
+}
+
+// Bouton CTA "C'est parti" : pop satisfaisant, montée rapide
+function playCTA(){
+  if(!soundEnabled.value)return;
+  const ctx=getAudioCtx();if(!ctx)return;
+  const osc=ctx.createOscillator();
+  const osc2=ctx.createOscillator();
+  const gain=ctx.createGain();
+  osc.connect(gain);osc2.connect(gain);gain.connect(ctx.destination);
+  osc.frequency.setValueAtTime(300,ctx.currentTime);
+  osc.frequency.exponentialRampToValueAtTime(520,ctx.currentTime+0.08);
+  osc2.frequency.setValueAtTime(600,ctx.currentTime);
+  osc2.frequency.exponentialRampToValueAtTime(900,ctx.currentTime+0.08);
+  gain.gain.setValueAtTime(0,ctx.currentTime);
+  gain.gain.linearRampToValueAtTime(0.25,ctx.currentTime+0.02);
+  gain.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+0.18);
+  osc.start();osc2.start();osc.stop(ctx.currentTime+0.2);osc2.stop(ctx.currentTime+0.2);
+}
+
+// Chapitre chip : tick cristallin, haut
+function playChip(){
+  if(!soundEnabled.value)return;
+  const ctx=getAudioCtx();if(!ctx)return;
+  const osc=ctx.createOscillator();
+  const gain=ctx.createGain();
+  osc.type="sine";
+  osc.frequency.setValueAtTime(1800,ctx.currentTime);
+  osc.frequency.exponentialRampToValueAtTime(2400,ctx.currentTime+0.04);
+  gain.gain.setValueAtTime(0.15,ctx.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+0.08);
+  osc.connect(gain);gain.connect(ctx.destination);
+  osc.start();osc.stop(ctx.currentTime+0.1);
+}
+
+// Mode card (quiz/long/stories) : "pop" médium avec résonance
+function playModeSelect(){
+  if(!soundEnabled.value)return;
+  const ctx=getAudioCtx();if(!ctx)return;
+  const buf=ctx.createBuffer(1,ctx.sampleRate*0.15,ctx.sampleRate);
+  const data=buf.getChannelData(0);
+  for(let i=0;i<data.length;i++){
+    const t=i/ctx.sampleRate;
+    const f=400-300*t*8;
+    const freq=Math.max(f,120);
+    data[i]=(Math.sin(2*Math.PI*freq*t)*0.6+Math.sin(2*Math.PI*freq*2*t)*0.2)*Math.exp(-t*28)*0.35;
+  }
+  const src=ctx.createBufferSource();src.buffer=buf;
+  const gain=ctx.createGain();gain.gain.setValueAtTime(0.8,0);
+  src.connect(gain);gain.connect(ctx.destination);src.start();
+}
+
+// Bonne réponse : accord majeur ascendant joyeux
 function playSound(type){
-  try{
-    const ctx=new(window.AudioContext||window.webkitAudioContext)();
-    const osc=ctx.createOscillator();
-    const gain=ctx.createGain();
+  if(!soundEnabled.value)return;
+  const ctx=getAudioCtx();if(!ctx)return;
+  if(type==="correct"){
+    [[523,0],[659,0.1],[784,0.2]].forEach(([freq,delay])=>{
+      const osc=ctx.createOscillator();const g=ctx.createGain();
+      osc.frequency.value=freq;osc.type="sine";
+      g.gain.setValueAtTime(0,ctx.currentTime+delay);
+      g.gain.linearRampToValueAtTime(0.18,ctx.currentTime+delay+0.02);
+      g.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+delay+0.25);
+      osc.connect(g);g.connect(ctx.destination);
+      osc.start(ctx.currentTime+delay);osc.stop(ctx.currentTime+delay+0.3);
+    });
+  }
+  else if(type==="wrong"){
+    const osc=ctx.createOscillator();const gain=ctx.createGain();
+    osc.type="sawtooth";
+    osc.frequency.setValueAtTime(280,ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(140,ctx.currentTime+0.2);
+    gain.gain.setValueAtTime(0.15,ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+0.25);
     osc.connect(gain);gain.connect(ctx.destination);
-    if(type==="correct"){osc.frequency.setValueAtTime(523,ctx.currentTime);osc.frequency.setValueAtTime(659,ctx.currentTime+0.1);gain.gain.setValueAtTime(0.3,ctx.currentTime);gain.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+0.4);}
-    else if(type==="wrong"){osc.frequency.setValueAtTime(300,ctx.currentTime);osc.frequency.setValueAtTime(200,ctx.currentTime+0.15);gain.gain.setValueAtTime(0.2,ctx.currentTime);gain.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+0.3);}
-    else if(type==="badge"){osc.frequency.setValueAtTime(523,ctx.currentTime);osc.frequency.setValueAtTime(659,ctx.currentTime+0.08);osc.frequency.setValueAtTime(784,ctx.currentTime+0.16);gain.gain.setValueAtTime(0.3,ctx.currentTime);gain.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+0.5);}
-    osc.start();osc.stop(ctx.currentTime+0.5);
-  }catch{}
+    osc.start();osc.stop(ctx.currentTime+0.3);
+  }
+  else if(type==="badge"){
+    [[523,0],[659,0.08],[784,0.16],[1047,0.28]].forEach(([freq,delay])=>{
+      const osc=ctx.createOscillator();const g=ctx.createGain();
+      osc.frequency.value=freq;osc.type="sine";
+      g.gain.setValueAtTime(0,ctx.currentTime+delay);
+      g.gain.linearRampToValueAtTime(0.2,ctx.currentTime+delay+0.02);
+      g.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+delay+0.35);
+      osc.connect(g);g.connect(ctx.destination);
+      osc.start(ctx.currentTime+delay);osc.stop(ctx.currentTime+delay+0.4);
+    });
+  }
 }
 
 // ── API ───────────────────────────────────────────────────────────────────────
@@ -621,7 +722,22 @@ const css=`
 
   .sticky-cta{position:sticky;bottom:16px;z-index:10;padding-top:10px;}
   .sticky-cta .btn-cta{box-shadow:0 6px 0 #1E40AF,0 8px 24px rgba(29,78,216,.4),0 -8px 20px rgba(235,245,255,.9);}
-  .fade-in{animation:fadeSlideIn .3s cubic-bezier(.34,1.2,.64,1);}
+  .badges-page-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;}
+  @media(max-width:480px){.badges-page-grid{grid-template-columns:1fr;}}
+  .badge-card{border-radius:18px;padding:16px 14px;display:flex;align-items:flex-start;gap:12px;transition:transform .15s cubic-bezier(.34,1.2,.64,1),box-shadow .15s;cursor:default;}
+  .badge-card.earned{background:var(--surface);border:1.5px solid var(--border);box-shadow:0 4px 0 var(--border2);}
+  .badge-card.earned:hover{transform:translateY(-3px);box-shadow:0 7px 0 var(--border2);}
+  .badge-card.locked{background:#F8FAFC;border:1.5px dashed #CBD5E1;opacity:.75;}
+  .badge-icon-wrap{width:48px;height:48px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:26px;flex-shrink:0;}
+  .badge-icon-wrap.earned{background:linear-gradient(135deg,#DBEAFE,#EDE9FE);box-shadow:0 3px 0 #BAD6F5;}
+  .badge-icon-wrap.locked{background:#F1F5F9;filter:grayscale(1);opacity:.5;}
+  .badge-info{flex:1;min-width:0;}
+  .badge-name{font-family:var(--font-d);font-size:13px;font-weight:800;color:#0C2340;margin-bottom:3px;}
+  .badge-desc{font-size:11px;color:var(--muted);line-height:1.5;}
+  .badge-hint{font-size:11px;color:#7C3AED;background:#F5F3FF;border-radius:6px;padding:3px 7px;margin-top:5px;display:inline-block;}
+  .badge-earned-tag{font-size:10px;font-weight:700;color:#059669;background:#F0FDF4;border:1px solid #A7F3D0;border-radius:20px;padding:2px 8px;margin-top:4px;display:inline-block;}
+  .badges-progress-bar{height:10px;background:var(--bg2);border-radius:999px;overflow:hidden;margin:10px 0 16px;}
+  .badges-progress-fill{height:100%;background:linear-gradient(90deg,#7C3AED,#3B82F6);border-radius:999px;transition:width .8s cubic-bezier(.34,1.2,.64,1);}
   @keyframes fadeSlideIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
   .hint{text-align:center;font-size:12px;color:var(--muted);margin-top:6px;}
   .err{color:#DC2626;text-align:center;padding:40px 0;}
@@ -806,7 +922,75 @@ function DailyGoal({stats}){
 }
 
 // ── Dashboard ─────────────────────────────────────────────────────────────────
-function Dashboard({stats}){
+// ── Badges Page ───────────────────────────────────────────────────────────────
+function BadgesPage({stats,onBack}){
+  const earned=stats.badges||[];
+  const pct=Math.round((earned.length/BADGES.length)*100);
+
+  return(
+    <div>
+      <button className="btn-ghost" onClick={onBack}>← Retour</button>
+      <div style={{marginBottom:16}}>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:6}}>
+          <div style={{fontFamily:"var(--font-d)",fontSize:20,fontWeight:800,color:"#0C2340"}}>
+            🏅 Mes badges
+          </div>
+          <div style={{fontFamily:"var(--font-d)",fontSize:15,fontWeight:800,color:"#7C3AED"}}>
+            {earned.length}/{BADGES.length}
+          </div>
+        </div>
+        <div className="badges-progress-bar">
+          <div className="badges-progress-fill" style={{width:`${pct}%`}}/>
+        </div>
+        <p style={{fontSize:12,color:"var(--muted)"}}>
+          {pct===100?"🎉 Tu as débloqué tous les badges !":
+           pct>=50?`Plus que ${BADGES.length-earned.length} badges à débloquer !`:
+           `${earned.length} badge${earned.length>1?"s":""} obtenu${earned.length>1?"s":""}. Continue comme ça !`}
+        </p>
+      </div>
+
+      {/* Badges obtenus */}
+      {earned.length>0&&(
+        <>
+          <div className="section-title" style={{marginBottom:10}}>✅ Obtenus</div>
+          <div className="badges-page-grid" style={{marginBottom:20}}>
+            {BADGES.filter(b=>earned.includes(b.id)).map(b=>(
+              <div key={b.id} className="badge-card earned" onClick={()=>playChip()}>
+                <div className="badge-icon-wrap earned">{b.icon}</div>
+                <div className="badge-info">
+                  <div className="badge-name">{b.label}</div>
+                  <div className="badge-desc">{b.desc}</div>
+                  <div className="badge-earned-tag">✓ Débloqué</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+
+      {/* Badges à débloquer */}
+      {BADGES.filter(b=>!earned.includes(b.id)).length>0&&(
+        <>
+          <div className="section-title" style={{marginBottom:10}}>🔒 À débloquer</div>
+          <div className="badges-page-grid">
+            {BADGES.filter(b=>!earned.includes(b.id)).map(b=>(
+              <div key={b.id} className="badge-card locked">
+                <div className="badge-icon-wrap locked">{b.icon}</div>
+                <div className="badge-info">
+                  <div className="badge-name" style={{color:"#64748B"}}>{b.label}</div>
+                  <div className="badge-desc">{b.desc}</div>
+                  <div className="badge-hint">💡 {b.hint}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+function Dashboard({stats, onOpenBadges}){
   const lv=getLevel(stats.xp);
   const progress=lv.next?Math.min(100,((stats.xp-lv.min)/(lv.next-lv.min))*100):100;
   const earned=BADGES.filter(b=>stats.badges.includes(b.id));
@@ -814,7 +998,7 @@ function Dashboard({stats}){
     <div className="dashboard">
       <div className="dash-card"><div className="dash-label">🔥 Streak</div><div className="dash-big">{stats.streak}</div><div className="dash-sub">jour{stats.streak>1?"s":""} de suite</div></div>
       <div className="dash-card"><div className="dash-label">⚡ XP Total</div><div className="dash-big">{stats.xp}</div><div className="dash-sub" style={{color:lv.color,fontWeight:700}}>{lv.label}</div>{lv.next&&<div className="xp-bar"><div className="xp-fill" style={{width:`${progress}%`}}/></div>}</div>
-      {earned.length>0&&<div className="dash-card dash-full"><div className="dash-label">🏅 Badges ({earned.length}/{BADGES.length})</div><div className="badges-wrap">{earned.map(b=><div key={b.id} className="badge-chip">{b.icon} {b.label}</div>)}</div></div>}
+      {earned.length>0&&<div className="dash-card dash-full" style={{cursor:"pointer"}} onClick={()=>{playChip();onOpenBadges();}}><div className="dash-label">🏅 Badges ({earned.length}/{BADGES.length}) <span style={{fontSize:10,color:"#7C3AED",fontWeight:600}}>— Voir tous →</span></div><div className="badges-wrap">{earned.slice(0,6).map(b=><div key={b.id} className="badge-chip">{b.icon} {b.label}</div>)}{earned.length>6&&<div className="badge-chip" style={{color:"#7C3AED"}}>+{earned.length-6} autres…</div>}</div></div>}
     </div>
   );
 }
@@ -1435,7 +1619,7 @@ function SetupScreen({subject,onStart,onBack}){
           {id:"mixed",icon:subject.id==="anglais"?"📖":"🎯",label:subject.id==="anglais"?"Révision générale":"Tout ce qui tombe au brevet",desc:"Sujets les plus probables"},
           {id:"chapter",icon:"📖",label:"Par chapitre",desc:"Cible un chapitre précis"},
         ].map(t=>(
-          <div key={t.id} className="training-card" style={ss(trainingType===t.id)} onClick={()=>{playClick();selectTraining(t.id);}}>
+          <div key={t.id} className="training-card" style={ss(trainingType===t.id)} onClick={()=>{playCardSelect();selectTraining(t.id);}}>
             <div className="training-icon">{t.icon}</div><div className="training-label">{t.label}</div><div className="training-desc">{t.desc}</div>
           </div>
         ))}
@@ -1448,7 +1632,7 @@ function SetupScreen({subject,onStart,onBack}){
             {chapters.map(c=>(
               <div key={c} className="chapter-chip"
                 style={chapter===c?{borderColor:subject.color,background:`${subject.color}15`,color:subject.color,fontWeight:700,transform:"translateY(-2px)"}:{}}
-                onClick={()=>{playClick();selectChapter(c);}}>
+                onClick={()=>{playChip();selectChapter(c);}}>
                 {c}
               </div>
             ))}
@@ -1467,7 +1651,7 @@ function SetupScreen({subject,onStart,onBack}){
             ].map(m=>(
               <div key={m.id} className="mode-card"
                 style={mode===m.id?{borderColor:subject.color,background:`${subject.color}12`,boxShadow:`0 8px 0 ${subject.color}25`,transform:"translateY(-4px)"}:{}}
-                onClick={()=>{playClick();selectMode(m.id);}}>
+                onClick={()=>{playModeSelect();selectMode(m.id);}}>
                 <div className="mode-icon">{m.icon}</div>
                 <div className="mode-label">{m.label}</div>
                 <div className="mode-desc">{m.desc}</div>
@@ -1482,7 +1666,7 @@ function SetupScreen({subject,onStart,onBack}){
           <div className="section-title">Nombre de questions</div>
           <div className="count-selector">
             {[3,5,10].map(n=>(
-              <button key={n} className={"count-btn"+(qCount===n?" selected":"")} onClick={()=>{playClick();setQCount(n);}}>
+              <button key={n} className={"count-btn"+(qCount===n?" selected":"")} onClick={()=>{playChip();setQCount(n);}}>
                 {n} questions
               </button>
             ))}
@@ -1500,7 +1684,7 @@ function SetupScreen({subject,onStart,onBack}){
           </label>
           <div className="sticky-cta">
             <button className="btn-cta" disabled={!canStart}
-              onClick={()=>{if(canStart){playClick();onStart(trainingType==="chapter"?chapter:null,mode,qCount,showFiche);}}}>
+              onClick={()=>{if(canStart){playCTA();onStart(trainingType==="chapter"?chapter:null,mode,qCount,showFiche);}}}>
               C'est parti 🚀
             </button>
           </div>
@@ -1573,12 +1757,16 @@ export default function App(){
 
               {homeTab==="accueil"&&(
                 <>
-                  <WelcomeBack stats={stats} onStartUrgent={startUrgent}/>
-                  <DailyGoal stats={stats}/>
-                  <Dashboard stats={stats}/>
-                  <TodayWidget onStartSession={startPlanningSession} planningKey={planningKey}/>
+                  {subScreen==="badges"?(
+                    <BadgesPage stats={stats} onBack={()=>setSubScreen(null)}/>
+                  ):(
+                    <>
+                      <WelcomeBack stats={stats} onStartUrgent={startUrgent}/>
+                      <DailyGoal stats={stats}/>
+                      <Dashboard stats={stats} onOpenBadges={()=>setSubScreen("badges")}/>
+                      <TodayWidget onStartSession={startPlanningSession} planningKey={planningKey}/>
                   <div className="section-title">Lancer une session</div>
-                  <button className="quick-btn" onClick={()=>{playClick();setIsMix(true);setSubject(null);setChapter(null);setMode("quiz");setQCount(2);setShowFiche(false);setScreen("play");}}>
+                  <button className="quick-btn" onClick={()=>{playCTA();setIsMix(true);setSubject(null);setChapter(null);setMode("quiz");setQCount(2);setShowFiche(false);setScreen("play");}}>
                     ⚡ Session express — 2 questions, moins d'1 minute
                   </button>
                   <div className="mode-grid">
@@ -1599,6 +1787,8 @@ export default function App(){
                       </div>
                     ))}
                   </div>
+                    </>
+                  )}
                 </>
               )}
 
@@ -1610,7 +1800,7 @@ export default function App(){
                       <div key={s.id} className="subject-card"
                         onMouseEnter={e=>{e.currentTarget.style.borderColor=s.color;}}
                         onMouseLeave={e=>{e.currentTarget.style.borderColor="";}}
-                        onClick={()=>{playClick();setSubject(s);setScreen("setup");}}>
+                        onClick={()=>{playCardSelect();setSubject(s);setScreen("setup");}}>
                         <div className="subject-icon">{s.icon}</div>
                         <div className="subject-label">{s.label}</div>
                         <div className="subject-lv" style={{color:lv.color}}>{xp>0?lv.label:""}</div>
@@ -1632,16 +1822,17 @@ export default function App(){
                       {id:"stories",icon:"📱",label:"Stories",desc:"Swipe !"},
                       {id:"veille",icon:"🎯",label:"Les essentiels",desc:"L'essentiel à savoir"},
                     ].map(m=>(
-                      <div key={m.id} className="mode-card" style={mixMode===m.id?{borderColor:"#3B82F6",background:"#DBEAFE",boxShadow:"0 8px 0 #93C5FD",transform:"translateY(-4px)"}:{}} onClick={()=>{playClick();setMixMode(m.id);}}>
+                      <div key={m.id} className="mode-card" style={mixMode===m.id?{borderColor:"#3B82F6",background:"#DBEAFE",boxShadow:"0 8px 0 #93C5FD",transform:"translateY(-4px)"}:{}} onClick={()=>{playModeSelect();setMixMode(m.id);}}>
                         <div className="mode-icon">{m.icon}</div><div className="mode-label">{m.label}</div><div className="mode-desc">{m.desc}</div>
                       </div>
                     ))}
                   </div>
                   {mixMode==="quiz"&&(
                     <><div className="section-title">Nombre de questions</div>
-                    <div className="count-selector" style={{marginBottom:14}}>{[3,5,10].map(n=><button key={n} className={"count-btn"+(qCount===n?" selected":"")} onClick={()=>setQCount(n)}>{n} Q</button>)}</div></>
+                    <div className="count-selector" style={{marginBottom:14}}>{[3,5,10].map(n=><button key={n} className={"count-btn"+(qCount===n?" selected":"")} onClick={()=>{playChip();setQCount(n);}}>{n} Q</button>)}</div></>
                   )}
                   <button className="btn-cta" disabled={!mixMode} onClick={()=>{
+                    playCTA();
                     if(!mixMode)return;
                     if(mixMode==="veille"){setMode("veille");setScreen("play");return;}
                     setIsMix(true);setSubject(null);setChapter(null);setMode(mixMode);setShowFiche(false);setScreen("play");
