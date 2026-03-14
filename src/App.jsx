@@ -43,7 +43,23 @@ const BADGES = [
   {id:"phys100", icon:"⚗️", label:"Expert Physique",     desc:"100 XP en Physique-Chimie. Einstein approuve.",         hint:"Cumule 100 XP en Physique-Chimie",       check:s=>(s.subjectXP?.physique||0)>=100},
 ];
 
-const LOADING_MESSAGES = [
+// ── DIFFICULTÉ ───────────────────────────────────────────────────────────────
+const DIFFICULTY_LEVELS = [
+  { id:"assez_bien",    label:"Assez Bien",   emoji:"🟢", range:"10–12",  desc:"Questions de base, formulations simples",          prompt:"niveau facile, questions directes sans piège, vocabulaire simple" },
+  { id:"bien",          label:"Bien",          emoji:"🔵", range:"12–14",  desc:"Questions standard, niveau vrai brevet",            prompt:"niveau standard du brevet DNB, questions classiques" },
+  { id:"tres_bien",     label:"Très Bien",     emoji:"🟡", range:"14–16",  desc:"Questions exigeantes, pièges classiques",           prompt:"niveau exigeant, inclus des pièges classiques et formulations ambiguës" },
+  { id:"felicitations", label:"Félicitations", emoji:"🔴", range:"16+",    desc:"Questions difficiles, au-delà du brevet",           prompt:"niveau très difficile, questions complexes, raisonnement approfondi requis" },
+];
+function getDifficulty(){
+  try{ return localStorage.getItem("brevet_difficulty")||"bien"; }catch{ return "bien"; }
+}
+function saveDifficulty(id){
+  try{ localStorage.setItem("brevet_difficulty",id); }catch{}
+}
+function getDifficultyPrompt(){
+  const d=DIFFICULTY_LEVELS.find(l=>l.id===getDifficulty())||DIFFICULTY_LEVELS[1];
+  return d.prompt;
+}
   "Je prépare tes questions…","L'IA réfléchit pour toi…","On prépare tes questions…",
   "Je cherche les meilleures questions…","Presque prêt…","Je calibre la difficulté…",
   "Questions du brevet en approche…","Concentration maximale…",
@@ -144,6 +160,50 @@ function importStats(file,onSuccess,onError){
     }catch{onError();}
   };
   reader.readAsText(file);
+}
+
+// ── Difficulty Selector ───────────────────────────────────────────────────────
+function DifficultySelector(){
+  const[current,setCurrent]=useState(()=>getDifficulty());
+  const select=(id)=>{
+    playChip();
+    saveDifficulty(id);
+    setCurrent(id);
+  };
+  const cur=DIFFICULTY_LEVELS.find(l=>l.id===current)||DIFFICULTY_LEVELS[1];
+  return(
+    <div style={{background:"var(--surface)",border:"1.5px solid var(--border)",borderRadius:16,padding:16,marginBottom:12,boxShadow:"0 3px 0 var(--border2)"}}>
+      <div className="section-title" style={{marginBottom:4}}>🎯 Difficulté des questions</div>
+      <p style={{fontSize:12,color:"var(--muted)",marginBottom:14,lineHeight:1.6}}>
+        Choisis la mention que tu vises — les questions s'adaptent dans tout l'app.
+      </p>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+        {DIFFICULTY_LEVELS.map(l=>{
+          const isSelected=current===l.id;
+          return(
+            <div key={l.id}
+              onClick={()=>select(l.id)}
+              style={{
+                border:`1.5px solid ${isSelected?"#2563EB":"var(--border)"}`,
+                borderRadius:14,padding:"12px 10px",cursor:"pointer",
+                background:isSelected?"#EFF6FF":"var(--surface)",
+                boxShadow:isSelected?"0 4px 0 #BAD6F5":"0 3px 0 var(--border2)",
+                transform:isSelected?"translateY(-2px)":"none",
+                transition:"all .15s cubic-bezier(.34,1.2,.64,1)",
+              }}>
+              <div style={{fontSize:20,marginBottom:5}}>{l.emoji}</div>
+              <div style={{fontFamily:"var(--font-d)",fontSize:13,fontWeight:800,color:isSelected?"#1D4ED8":"#0C2340",marginBottom:2}}>{l.label}</div>
+              <div style={{fontSize:10,fontWeight:700,color:isSelected?"#2563EB":"#7C3AED",background:isSelected?"#DBEAFE":"#F5F3FF",borderRadius:6,padding:"2px 6px",display:"inline-block",marginBottom:5}}>{l.range}/20</div>
+              <div style={{fontSize:11,color:"var(--muted)",lineHeight:1.45}}>{l.desc}</div>
+            </div>
+          );
+        })}
+      </div>
+      <div style={{marginTop:10,padding:"8px 12px",background:"#EFF6FF",borderRadius:8,fontSize:12,color:"#1E3A8A"}}>
+        Niveau actuel : {cur.emoji} <strong>{cur.label}</strong> — {cur.desc}
+      </div>
+    </div>
+  );
 }
 
 function BackupPanel({stats,onStatsRefresh}){
@@ -387,11 +447,18 @@ const buildQuizPrompt=(subject,chapter,weak=[],count=5,seen=[])=>{
   const seed=Math.floor(Math.random()*99999);
   const hint=weak.length?` Priorité sur ces chapitres fragiles: ${weak.join(", ")}.`:"";
   const avoid=seen.length?`\nÉVITE ABSOLUMENT ces questions déjà posées:\n${seen.slice(0,15).map((q,i)=>`${i+1}. "${q}"`).join("\n")}`:"";
+  const diff=getDifficultyPrompt();
   return`[Seed:${seed}] Génère exactement ${count} QCM NOUVEAUX et variés sur "${subject}"${chapter?` chapitre "${chapter}"`:" (sujets les plus probables au brevet)"}.${hint}${avoid}
-Programme officiel 3ème. Varie les formulations, niveaux, angles d'approche. Ne répète jamais les questions déjà posées.
+Difficulté : ${diff}.
+Programme officiel 3ème. Varie les formulations, niveaux, angles d'approche.
 JSON:{"questions":[{"question":"...","chapter":"...","choices":["A. ...","B. ...","C. ...","D. ..."],"answer":"A","explanation":"..."}]}`;
 };
-const buildMixPrompt=(seen=[])=>{const seed=Math.floor(Math.random()*99999);const avoid=seen.length?`\nÉVITE ces questions déjà posées:\n${seen.slice(0,10).map((q,i)=>`${i+1}. "${q}"`).join("\n")}`:"";return`[Seed:${seed}] Génère 5 QCM mélangés et variés pour le brevet. Matières: .${avoid}\nJSON:{"questions":[{"question":"...","matiere":"...","chapter":"...","choices":["A. ...","B. ...","C. ...","D. ..."],"answer":"A","explanation":"..."}]}`;};
+const buildMixPrompt=(seen=[])=>{
+  const seed=Math.floor(Math.random()*99999);
+  const avoid=seen.length?`\nÉVITE ces questions déjà posées:\n${seen.slice(0,10).map((q,i)=>`${i+1}. "${q}"`).join("\n")}`:"";
+  const diff=getDifficultyPrompt();
+  return`[Seed:${seed}] Génère 5 QCM mélangés et variés pour le brevet. Matières: ${MIX_LIST}.${avoid}\nDifficulté : ${diff}.\nJSON:{"questions":[{"question":"...","matiere":"...","chapter":"...","choices":["A. ...","B. ...","C. ...","D. ..."],"answer":"A","explanation":"..."}]}`;
+};
 const buildMixLongPrompt=()=>`Génère 1 question ouverte type brevet. Matières: ${MIX_LIST}.
 JSON:{"question":"...","matiere":"...","context":"...","correction":"...","points_cles":["...","...","..."]}`;
 const buildLongPrompt=(subject,chapter)=>{
@@ -536,14 +603,29 @@ const buildErrorPrompt=(q,w,c,subjectId)=>{
 Explique en 2-3 phrases simples et directes pourquoi c'est faux — style détendu, pas trop soutenu.${addEtym?"\nSi un mot clé de la question a une étymologie intéressante (grec, latin…), ajoute UNE phrase courte du style : \"Au fait : 'cellule' vient du latin cellula (petite chambre).\" Sinon laisse le champ vide.":""}
 JSON:{"explication_erreur":"...","etymologie":"${addEtym?"si pertinent, sinon vide":""}"}`;
 };
-const buildPlanningPrompt=(dateStr,daysLeft,fromDateISO)=>{
+const buildPlanningPrompt=(dateStr,daysLeft,fromDateISO,userStats)=>{
   const phase=daysLeft>60?"FONDATIONS":daysLeft>21?"CIBLAGE":daysLeft>7?"INTENSIF":"FINAL";
   const from=fromDateISO||new Date().toISOString().split("T")[0];
-  return`Tu génères UN PLANNING DE RÉVISION pour le brevet 3ème.
+
+  // Construire le profil personnalisé de l'élève
+  let profileHint="";
+  if(userStats){
+    const weak=Object.entries(userStats.weakChapters||{})
+      .flatMap(([sid,chaps])=>Object.entries(chaps).map(([ch,n])=>({sid,ch,n})))
+      .sort((a,b)=>b.n-a.n).slice(0,5);
+    const strong=Object.entries(userStats.subjectXP||{})
+      .sort((a,b)=>b[1]-a[1]).slice(0,3).map(e=>SUBJECTS.find(s=>s.id===e[0])?.label||e[0]);
+    const weakStr=weak.map(w=>{const s=SUBJECTS.find(s=>s.id===w.sid);return`${s?.label||w.sid}: ${w.ch} (raté ${w.n}x)`;}).join(", ");
+    if(weakStr)profileHint+=`\nCHAPITRES FRAGILES à prioriser ABSOLUMENT : ${weakStr}.`;
+    if(strong.length)profileHint+=`\nMatières fortes (moins prioritaires) : ${strong.join(", ")}.`;
+    if(userStats.totalSessions<5)profileHint+=`\nÉlève débutant (${userStats.totalSessions} sessions) : commence par les bases.`;
+  }
+
+  return`Tu génères UN PLANNING DE RÉVISION PERSONNALISÉ pour le brevet 3ème.
 Brevet le : ${dateStr}. Jours restants : ${daysLeft}. Phase : ${phase}.
 Génère EXACTEMENT 7 jours à partir du ${from} (inclus).
 Matières : Mathématiques, Français, Histoire-Géo, SVT, Physique-Chimie, EMC, Technologie.
-Weekends : max 1-2 sessions légères. Jours de semaine : 2-3 sessions de 20 min chacune.
+Weekends : max 1-2 sessions légères. Jours de semaine : 2-3 sessions de 20 min chacune.${profileHint}
 Adapte les matières à la phase : ${phase==="FONDATIONS"?"révisions larges":phase==="CIBLAGE"?"chapitres fréquents au brevet":phase==="INTENSIF"?"sujets les plus probables":phase==="FINAL"?"fiches synthèse uniquement"}.
 RÉPONDS UNIQUEMENT avec ce JSON valide, rien d'autre :
 {"jours":[{"date":"DD/MM","dateISO":"YYYY-MM-DD","jour":"Lundi","sessions":[{"matiere":"Mathématiques","chapitre":"Pythagore & Thalès","duree":"20 min","exercice":"Quiz QCM"}]}]}`;
@@ -1866,7 +1948,13 @@ function QuizMode({subject,chapter,isMix,count,onBack,onStatsUpdate,showFiche=fa
     <div>
       <button className="btn-ghost" onClick={onBack}>← Retour</button>
       <div className="progress-wrap">
-        <div className="progress-info"><span>Q{idx+1}/{questions.length}</span><span>{score} ⭐</span></div>
+        <div className="progress-info">
+          <span>Q{idx+1}/{questions.length}</span>
+          <span style={{fontSize:10,background:"#EFF6FF",border:"1px solid #BAD6F5",borderRadius:20,padding:"2px 8px",color:"#1D4ED8",fontWeight:700}}>
+            {DIFFICULTY_LEVELS.find(l=>l.id===getDifficulty())?.emoji} {DIFFICULTY_LEVELS.find(l=>l.id===getDifficulty())?.label}
+          </span>
+          <span>{score} ⭐</span>
+        </div>
         <div className="progress-bar"><div className="progress-fill" style={{width:`${(idx/questions.length)*100}%`}}/></div>
       </div>
       <div className="question-card">
@@ -2035,7 +2123,7 @@ function PlanningScreen({onBack,onStartSession,onPlanningUpdate}){
     setState("loading");
     try{
       const fromDate=new Date().toISOString().split("T")[0];
-      const d=await withMinDelay(callClaude(buildPlanningPrompt(dateStr,daysLeft,fromDate),null,2000),600);
+      const d=await withMinDelay(callClaude(buildPlanningPrompt(dateStr,daysLeft,fromDate,getStats()),null,2000),600);
       const j=d.jours||d.planning||d.days||d.schedule||Object.values(d)[0]||[];
       if(!Array.isArray(j)||j.length===0)throw new Error("Planning vide");
       setPlanning(j);
@@ -2059,7 +2147,7 @@ function PlanningScreen({onBack,onStartSession,onPlanningUpdate}){
     if(daysLeft<=0)return;
     setLoadingWeek(true);
     try{
-      const d=await callClaude(buildPlanningPrompt(brevetDateStr,daysLeft,fromDate),null,2000);
+      const d=await callClaude(buildPlanningPrompt(brevetDateStr,daysLeft,fromDate,getStats()),null,2000);
       const j=d.jours||d.planning||d.days||d.schedule||Object.values(d)[0]||[];
       if(!Array.isArray(j)||j.length===0)throw new Error("Semaine vide");
       const merged=[...planning,...j];
@@ -2467,6 +2555,7 @@ export default function App(){
                     ))}
                   </div>
                   <div className="divider"/>
+                  <DifficultySelector/>
                   <BackupPanel stats={stats} onStatsRefresh={()=>setStats(getStats())}/>
                   <div className="divider"/>
                   <div className="section-title">Réglages</div>
