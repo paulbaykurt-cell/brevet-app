@@ -778,9 +778,9 @@ const buildRealExamPrompt = (examSubject, partIndex) => {
 Génère une question de type examen officiel pour la partie : "${part.part}" (barème : ${part.points} points).
 Matière : ${subjectHint}.
 ${past}
-Inspire-toi des vrais sujets ci-dessus. La question doit être réaliste, précise, au niveau 3ème.
-Fournis aussi un document/texte support si la partie le nécessite.
-JSON:{"question":"...","document":"(texte ou données support, vide si pas nécessaire)","consignes":["consigne 1","consigne 2","consigne 3"],"bareme":["critère 1 (X pts)","critère 2 (X pts)"],"correction":"correction type détaillée","points_cles":["point 1","point 2","point 3"]}`;
+Inspire-toi des vrais sujets. La question doit être réaliste, précise, au niveau 3ème.
+Si tu fournis un document support, structure-le clairement avec des sauts de ligne, des titres courts (ex: "Données :", "Formules :", "Tableau :") et des listes à puces propres. PAS de tableaux en ASCII avec des tirets.
+JSON:{"question":"...","document":"texte structuré avec sauts de ligne \\n et titres clairs, vide si pas nécessaire","consignes":["consigne 1 (X pts)","consigne 2 (X pts)","consigne 3 (X pts)"],"bareme":["critère 1 : X pts","critère 2 : X pts"],"correction":"correction type détaillée","points_cles":["point 1","point 2","point 3"]}`;
 };
 const buildVeillePrompt=(subject)=>`Génère les 15 notions ABSOLUMENT essentielles à connaître la essentiels pour "${subject}". Programme officiel 3ème. Ce qui tombe TOUJOURS.
 JSON:{"notions":[{"titre":"...","contenu":"...","exemple":"...","astuces":"..."}]}`;
@@ -1527,16 +1527,17 @@ function VeilleMode({onBack,onStatsUpdate}){
   const[open,setOpen]=useState(null);
 
   const launch=async(s)=>{
-    setSubject(s);setState("loading");
+    setSubject(s);
+    setStep("loading"); // ← on sort du pick immédiatement
+    setState("loading");
     try{
       const d=await withMinDelay(callClaude(buildVeillePrompt(s.label),null,2500));
-      setNotions(d.notions||[]);setState("done");
-      // Badge veille
+      setNotions(d.notions||[]);setStep("done");setState("done");
       let stats=getStats();stats=updateStreak(stats);
       const{updated}=addXP(stats,5,s.id);
       if(!updated.badges.includes("veille"))updated.badges=[...updated.badges,"veille"];
       saveStats(updated);onStatsUpdate&&onStatsUpdate(updated);
-    }catch{setState("error");}
+    }catch{setStep("error");setState("error");}
   };
 
   if(step==="pick")return(
@@ -1555,8 +1556,8 @@ function VeilleMode({onBack,onStatsUpdate}){
     </div>
   );
 
-  if(state==="loading")return<><button className="btn-ghost" onClick={onBack}>← Retour</button><Spinner text={`Chargement des essentiels ${subject?.label}…`}/></>;
-  if(state==="error")return<><button className="btn-ghost" onClick={onBack}>← Retour</button><p className="err">Erreur. Réessaie !</p></>;
+  if(step==="loading")return<><button className="btn-ghost" onClick={onBack}>← Retour</button><Spinner text={`Chargement des essentiels ${subject?.label}…`}/></>;
+  if(step==="error")return<><button className="btn-ghost" onClick={onBack}>← Retour</button><p className="err">Erreur. Réessaie !</p></>;
 
   return(
     <div>
@@ -1896,10 +1897,23 @@ function ExamMode({onBack, onStatsUpdate}){
         {q&&(
           <>
             {/* Document support */}
-            {q.document&&q.document.trim().length>5&&(
+            {q.document&&q.document.trim().length>5&&q.document.trim()!=="(texte ou données support, vide si pas nécessaire)"&&(
               <div className="exam-document">
                 <div className="exam-document-label">📄 Document — Texte support</div>
-                {q.document}
+                {q.document.split('\n').map((line,i)=>{
+                  if(!line.trim())return <br key={i}/>;
+                  const isTitle=line.trim().endsWith(':')||line.trim().startsWith('•')||line.trim().startsWith('-');
+                  return(
+                    <div key={i} style={{
+                      fontWeight:isTitle&&line.trim().endsWith(':')?"700":"400",
+                      color:line.trim().endsWith(':')?"#92400E":"#78350F",
+                      marginBottom:line.trim().endsWith(':')?6:2,
+                      marginTop:line.trim().endsWith(':')?8:0,
+                      paddingLeft:line.trim().startsWith('•')||line.trim().startsWith('-')?12:0,
+                      fontSize:13,lineHeight:1.7,
+                    }}>{line}</div>
+                  );
+                })}
               </div>
             )}
 
@@ -2688,7 +2702,7 @@ export default function App(){
                     {[
                       {id:"mix-quiz",icon:"🎲",label:"Mix Quiz",desc:"5 QCM toutes matières"},
                       {id:"mix-long",icon:"✍️",label:"Question longue",desc:"Façon brevet"},
-                      {id:"exam",icon:"🎓",label:"Simulation examen",desc:"30 min chrono"},
+                      {id:"exam",icon:"🎓",label:"Simulation examen",desc:"Durée réelle · 1h à 3h"},
                       {id:"veille",icon:"🎯",label:"Les essentiels",desc:"L'essentiel à savoir"},
                     ].map(m=>(
                       <div key={m.id} className="mode-card" onClick={()=>{
@@ -2776,7 +2790,7 @@ export default function App(){
                     {[
                       {id:"planning",icon:"📅",label:"Mon Planning",desc:"Planning intelligent"},
                       {id:"veille",icon:"🎯",label:"Les essentiels",desc:"L'essentiel à savoir"},
-                      {id:"exam",icon:"🎓",label:"Simulation examen",desc:"30 min chrono"},
+                      {id:"exam",icon:"🎓",label:"Simulation examen",desc:"Durée réelle · 1h à 3h"},
                       {id:"summary",icon:"🧠",label:"Résumé IA",desc:"Analyse personnalisée"},
                     ].map(m=>(
                       <div key={m.id} className="mode-card" onClick={()=>{
