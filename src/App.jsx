@@ -622,7 +622,16 @@ async function callClaude(prompt,system,maxTokens=2000,retries=3){
         body:JSON.stringify({model:"claude-haiku-4-5-20251001",max_tokens:maxTokens,
           system:sys,messages:[{role:"user",content:prompt}]})});
       const data=await r.json();
-      if(data.error)throw new Error(data.error.message||"Erreur API");
+      if(data.error){
+        // Rate limit : attendre plus longtemps avant de réessayer
+        if(data.error.type==="rate_limit_error"||data.error.message?.includes("rate")){
+          if(attempt<retries-1){
+            await new Promise(res=>setTimeout(res,5000*(attempt+1)));
+            continue;
+          }
+        }
+        throw new Error(data.error.message||"Erreur API");
+      }
       const raw=(data.content?.[0]?.text||"");
       let cleaned=raw.replace(/```json\s*/gi,"").replace(/```\s*/g,"").trim();
       if(!cleaned.startsWith("{")&&!cleaned.startsWith("[")){
@@ -634,7 +643,7 @@ async function callClaude(prompt,system,maxTokens=2000,retries=3){
       return JSON.parse(cleaned);
     }catch(e){
       if(attempt===retries-1)throw e;
-      await new Promise(res=>setTimeout(res,600*(attempt+1)));
+      await new Promise(res=>setTimeout(res,1500*(attempt+1)));
     }
   }
 }
@@ -1558,8 +1567,16 @@ function VeilleMode({onBack,onStatsUpdate}){
     </div>
   );
 
-  if(step==="loading")return<><button className="btn-ghost" onClick={onBack}>← Retour</button><Spinner text={`Chargement des essentiels ${subject?.label}…`}/></>;
-  if(step==="error")return<><button className="btn-ghost" onClick={onBack}>← Retour</button><p className="err">Erreur. Réessaie !</p></>;
+  if(step==="loading")return<><button className="btn-ghost" onClick={onBack}>← Retour</button><Spinner text={`Chargement des essentiels ${subject?.label}… (peut prendre jusqu'à 15s)`}/></>;
+  if(step==="error")return(
+    <><button className="btn-ghost" onClick={onBack}>← Retour</button>
+    <div style={{background:"#FEF2F2",border:"1.5px solid #FECACA",borderRadius:14,padding:16,textAlign:"center"}}>
+      <div style={{fontSize:24,marginBottom:8}}>😕</div>
+      <div style={{fontFamily:"var(--font-d)",fontSize:15,fontWeight:800,color:"#991B1B",marginBottom:6}}>L'IA est surchargée en ce moment</div>
+      <div style={{fontSize:13,color:"#7F1D1D",marginBottom:14}}>Trop de requêtes simultanées. Attends quelques secondes et réessaie !</div>
+      <button className="btn-cta" onClick={()=>{setStep("pick");setState("idle");}}>↩ Réessayer</button>
+    </div></>
+  );
 
   return(
     <div>
@@ -1665,7 +1682,7 @@ function StoriesMode({subject,chapter,isMix,onBack,onDone}){
   };
 
   if(state==="loading")return<Spinner text="Chargement des stories…"/>;
-  if(state==="error")return<p className="err">Aïe, un souci technique — réessaie !</p>;
+  if(state==="error")return<p className="err">L'IA est surchargée — attends 10 secondes et réessaie !</p>;
   const q=questions[idx];
   return(
     <div>
@@ -2153,7 +2170,7 @@ function QuizMode({subject,chapter,isMix,count,onBack,onStatsUpdate,showFiche=fa
 
   if(phase==="fiche")return<MiniFiche subject={subject?.label} chapter={chapter} onContinue={()=>setPhase("loading")} onSkip={()=>setPhase("loading")}/>;
   if(phase==="loading")return<><Spinner/><FloatTools showCalc={subject?.id==="maths"||subject?.id==="physique"}/></>;
-  if(phase==="error")return<p className="err">Aïe, un souci technique — réessaie !</p>;
+  if(phase==="error")return<p className="err">L'IA est surchargée — attends 10 secondes et réessaie !</p>;
 
   const q=questions[idx];
   const isLast=idx===questions.length-1;
@@ -2250,7 +2267,7 @@ function LongMode({subject,chapter,isMix,onBack,onStatsUpdate,showFiche=false}){
 
   if(phase==="fiche")return<MiniFiche subject={subject?.label} chapter={chapter} onContinue={()=>setPhase("loading")} onSkip={()=>setPhase("loading")}/>;
   if(phase==="loading")return<><Spinner/><FloatTools showCalc={subject?.id==="maths"||subject?.id==="physique"}/></>;
-  if(phase==="error")return<p className="err">Aïe, un souci technique — réessaie !</p>;
+  if(phase==="error")return<p className="err">L'IA est surchargée — attends 10 secondes et réessaie !</p>;
 
   return(
     <div>
