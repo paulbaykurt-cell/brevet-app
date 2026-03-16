@@ -4,26 +4,27 @@ import { useState, useEffect, useRef, useCallback } from "react";
 const SUBJECTS = [
   { id:"maths",    label:"Mathématiques",  icon:"📐", color:"var(--accent)", shadow:"#1D4ED8" },
   { id:"francais", label:"Français",        icon:"📚", color:"#7C3AED", shadow:"#5B21B6" },
-  { id:"histoire", label:"Histoire-Géo",    icon:"🌍", color:"#059669", shadow:"#065F46" },
+  { id:"histoire", label:"Histoire",        icon:"🏛️", color:"#059669", shadow:"#065F46" },
+  { id:"geo",      label:"Géographie",      icon:"🌍", color:"#0D9488", shadow:"#0F766E" },
   { id:"svt",      label:"SVT",             icon:"🔬", color:"#D97706", shadow:"#92400E" },
   { id:"physique", label:"Physique-Chimie", icon:"⚗️",  color:"#DC2626", shadow:"#991B1B" },
-  { id:"anglais",  label:"Anglais",         icon:"🗣️",  color:"#DB2777", shadow:"#9D174D" },
   { id:"emc",      label:"EMC",             icon:"⚖️",  color:"#0891B2", shadow:"#155E75" },
   { id:"techno",   label:"Technologie",     icon:"🖥️",  color:"#EA580C", shadow:"#9A3412" },
 ];
 const CHAPTERS = {
   maths:    ["Géométrie plane","Calcul littéral","Statistiques & Probabilités","Fonctions","Calcul numérique","Pythagore & Thalès","Trigonométrie","Volumes & Aires"],
   francais: ["Grammaire","Orthographe & Conjugaison","Lecture & Compréhension","Expression écrite","Figures de style","Textes argumentatifs"],
-  histoire: ["1ère Guerre Mondiale","2ème Guerre Mondiale","Guerre Froide","Décolonisation","La Ve République","Mondialisation","Géographie urbaine","Développement construit"],
+  histoire: ["1ère Guerre Mondiale","2ème Guerre Mondiale","Guerre Froide","Décolonisation","La Ve République","La Résistance","Démocratie & République","Développement construit"],
+  geo:      ["Mondialisation","Géographie urbaine","Aménagement du territoire","Développement durable","Espaces et échanges","Inégalités de développement","Union Européenne","Paysages et milieux"],
   svt:      ["Génétique & Hérédité","Évolution des espèces","Corps humain & Santé","Écosystèmes","Géologie","Reproduction"],
   physique: ["Mécanique","Électricité","Optique","Chimie organique","Atomes & Molécules","Énergie & Puissance"],
-  anglais:  ["Grammaire","Vocabulaire thématique","Compréhension écrite","Expression écrite","Temps & Conjugaison"],
+
   emc:      ["Démocratie & Citoyenneté","Droits & Libertés","Laïcité","Institutions françaises","Engagement citoyen"],
   techno:   ["Programmation & Algorithmes","Systèmes techniques","Réseaux & Internet","Développement durable","Projet technologique"],
 };
 const GEO_CHAPTERS = ["Géométrie plane","Pythagore & Thalès","Trigonométrie","Volumes & Aires"];
-const MIX_LIST = SUBJECTS.filter(s=>s.id!=="anglais").map(s=>s.label).join(", ");
-const SUBJECT_COLORS = {"Mathématiques":"#3B82F6","Français":"#7C3AED","Histoire-Géo":"#059669","SVT":"#D97706","Physique-Chimie":"#DC2626","Anglais":"#DB2777","EMC":"#0891B2","Technologie":"#EA580C"};
+const MIX_LIST = SUBJECTS.map(s=>s.label).join(", ");
+const SUBJECT_COLORS = {"Mathématiques":"#3B82F6","Français":"#7C3AED","Histoire":"#059669","Géographie":"#0D9488","SVT":"#D97706","Physique-Chimie":"#DC2626","EMC":"#0891B2","Technologie":"#EA580C"};
 
 const BADGES = [
   {id:"first",   icon:"🎯",label:"Premier Quiz",        desc:"Tu as lancé ta première session de révision.",          hint:"Lance un quiz",                          check:s=>s.totalSessions>=1},
@@ -34,7 +35,7 @@ const BADGES = [
   {id:"perfect", icon:"⭐",label:"Quiz parfait",          desc:"5/5 dans un quiz. Tout bon, aucune erreur !",           hint:"Fais un quiz sans faute",                check:s=>s.bestScore>=5},
   {id:"rainbow", icon:"🌈",label:"Toutes les matières",  desc:"Tu as révisé dans toutes les matières au moins une fois.",hint:"Fais au moins 1 quiz dans 7 matières",  check:s=>Object.keys(s.subjectXP||{}).length>=7},
   {id:"maths100",icon:"📐",label:"Maître des Maths",     desc:"100 XP obtenus en Mathématiques. Pythagore serait fier.",hint:"Cumule 100 XP en Maths",                check:s=>(s.subjectXP?.maths||0)>=100},
-  {id:"hist100", icon:"🌍",label:"As de l'Histoire",     desc:"100 XP en Histoire-Géo. Tu maîtrises le passé !",       hint:"Cumule 100 XP en Histoire-Géo",          check:s=>(s.subjectXP?.histoire||0)>=100},
+  {id:"hist100", icon:"🌍",label:"As de l'Histoire",     desc:"100 XP en Histoire-Géo. Tu maîtrises le passé !",       hint:"Cumule 100 XP en Histoire-Géo",          check:s=>(s.subjectXP?.histoire||0)>=100||( s.subjectXP?.geo||0)>=100},
   {id:"sess10",  icon:"🎓",label:"10 sessions",          desc:"10 sessions complètes — la persévérance c'est toi.",    hint:"Complète 10 sessions",                   check:s=>s.totalSessions>=10},
   {id:"veille",  icon:"🌙",label:"Les essentiels",        desc:"Tu as consulté les notions essentielles avant le brevet.",hint:"Utilise le mode Les essentiels",        check:s=>s.badges?.includes("veille")||false},
   {id:"sess25",  icon:"🚀",label:"25 sessions",          desc:"25 sessions — tu es un(e) vrai(e) champion(ne) du brevet !", hint:"Complète 25 sessions",               check:s=>s.totalSessions>=25},
@@ -106,9 +107,9 @@ const THEMES = [
     label: "Nuit",
     emoji: "🌙",
     vars: {
-      "--bg":"#0F172A","--bg2":"#1E293B","--surface":"#1E293B","--surface2":"#263244",
-      "--border":"#334155","--border2":"#475569","--text":"#F1F5F9","--text2":"#CBD5E1",
-      "--muted":"#94A3B8","--accent":"#60A5FA","--cta1":"#3B82F6","--cta2":"#1D4ED8",
+      "--bg":"#0D1B2E","--bg2":"#152540","--surface":"#1A2F4A","--surface2":"#1E3557",
+      "--border":"#2A4A6B","--border2":"#2F5580","--text":"#E8F4FF","--text2":"#B8D4F0",
+      "--muted":"#7BA3C8","--accent":"#60A5FA","--cta1":"#3B82F6","--cta2":"#1D4ED8",
       "--cta-shadow":"#1E3A8A","--tab-active":"#3B82F6",
     }
   },
@@ -715,7 +716,7 @@ const EXAM_SUBJECTS = [
   },
   {
     id: "histoire",
-    label: "Histoire-Géo & EMC",
+    label: "Histoire, Géo & EMC",
     icon: "🌍",
     color: "#059669",
     duration: 2 * 60,
@@ -813,7 +814,7 @@ Donne des conseils précis, motivants, et un plan pour les 3 prochains jours.
 JSON:{"message_motivant":"...","analyse":"...","plan_3jours":[{"jour":"Jour 1","focus":"...","action":"..."},{"jour":"Jour 2","focus":"...","action":"..."},{"jour":"Jour 3","focus":"...","action":"..."}],"conseil_final":"..."}`;
 };
 const buildErrorPrompt=(q,w,c,subjectId)=>{
-  const addEtym=subjectId==="francais"||subjectId==="histoire"||subjectId==="svt"||subjectId==="emc";
+  const addEtym=subjectId==="francais"||subjectId==="histoire"||subjectId==="geo"||subjectId==="svt"||subjectId==="emc";
   return`Élève de 3ème a répondu "${w}" à cette question : "${q}". Bonne réponse : "${c}".
 Explique en 2-3 phrases simples et directes pourquoi c'est faux — style détendu, pas trop soutenu.${addEtym?"\nSi un mot clé de la question a une étymologie intéressante (grec, latin…), ajoute UNE phrase courte du style : \"Au fait : 'cellule' vient du latin cellula (petite chambre).\" Sinon laisse le champ vide.":""}
 JSON:{"explication_erreur":"...","etymologie":"${addEtym?"si pertinent, sinon vide":""}"}`;
@@ -1557,7 +1558,7 @@ function VeilleMode({onBack,onStatsUpdate}){
       <div className="section-title">🎯 Les essentiels</div>
       <p style={{fontSize:13,color:"var(--muted)",marginBottom:16,lineHeight:1.6}}>Ce qui tombe vraiment au brevet — les 15 points clés par matière. Parfait pour réviser en 10 minutes !</p>
       <div className="subject-grid">
-        {SUBJECTS.filter(s=>s.id!=="anglais").map(s=>(
+        {SUBJECTS.map(s=>(
           <div key={s.id} className="subject-card" onClick={()=>launch(s)}>
             <div className="subject-icon">{s.icon}</div>
             <div className="subject-label">{s.label}</div>
@@ -2547,7 +2548,7 @@ function SetupScreen({subject,onStart,onBack}){
       <div className="section-title">Comment veux-tu t'entraîner ?</div>
       <div className="training-grid">
         {[
-          {id:"mixed",icon:subject.id==="anglais"?"📖":"🎯",label:subject.id==="anglais"?"Révision générale":"Tout ce qui tombe au brevet",desc:"Sujets les plus probables"},
+          {id:"mixed",icon:"🎯",label:"Tout ce qui tombe au brevet",desc:"Sujets les plus probables"},
           {id:"chapter",icon:"📖",label:"Par chapitre",desc:"Cible un chapitre précis"},
         ].map(t=>(
           <div key={t.id} className="training-card" style={ss(trainingType===t.id)} onClick={()=>{playCardSelect();selectTraining(t.id);}}>
