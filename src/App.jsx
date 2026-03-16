@@ -1383,7 +1383,7 @@ function ReportButton({question, subject, chapter}){
 
   const submit=()=>{
     if(!selected)return;
-    saveReport(question,selected,subject,chapter);const p=new URLSearchParams({"entry.1898786218":question?.substring(0,200)||"","entry.1730117434":selected,"entry.1866947180":subject||"","entry.1865775528":chapter||""});fetch("https://docs.google.com/forms/d/e/1FAIpQLScHWpkOxrewXK107XQ0-Z2ousRg2XStQE8aTFQwPbPvWRPmKA/formResponse?"+p.toString(),{method:"POST",mode:"no-cors"}).catch(()=>{});
+    saveReport(question,selected,subject,chapter);
     setDone(true);
     setTimeout(()=>{setOpen(false);setDone(false);setSelected(null);},2000);
   };
