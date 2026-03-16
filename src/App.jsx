@@ -145,6 +145,7 @@ function getDifficultyMultiplier(){
   const d=getDifficulty();
   return d==="assez_bien"?0.8:d==="bien"?1:d==="tres_bien"?1.4:d==="felicitations"?2:1;
 }
+function getDifficultyPrompt(){
   const d=DIFFICULTY_LEVELS.find(l=>l.id===getDifficulty())||DIFFICULTY_LEVELS[1];
   return d.prompt;
 }
@@ -452,6 +453,7 @@ function unlockAudio(){
     ctx.resume().then(()=>{audioUnlocked=true;});
   }catch{}
 }
+function savePlanning(p,brevetDate,daysLeft){
   try{localStorage.setItem("brevet_plan",JSON.stringify({planning:p,brevetDate,daysLeft,savedAt:new Date().toISOString()}));}catch{}
 }
 function loadPlanning(){
@@ -2834,4 +2836,3 @@ export default function App(){
     </>
   );
 }
-// v28fix
