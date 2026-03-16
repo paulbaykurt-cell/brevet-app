@@ -1,3 +1,5 @@
+import { useState, useEffect } from "react";
+import { Analytics } from "@vercel/analytics/react";
 import { useState, useEffect, useRef, useCallback } from "react";
 
 // ── DATA ──────────────────────────────────────────────────────────────────────
@@ -1220,6 +1222,12 @@ const css=`
   .sound-toggle input{accent-color:#3B82F6;}
 `;
 
+// ─── Components ──────────────────────────────────���────────────────────────────
+function Spinner({ text = "Génération en cours…" }) {
+  return (
+    <div className="loading">
+      <div className="spinner-ring" />
+      <p>{text}</p>
 // ── Sound toggle context ──────────────────────────────────────────────────────
 const soundEnabled = {value: true};
 
@@ -2688,6 +2696,8 @@ export default function App(){
       <style>{css}</style>
       <div className="app">
         <div className="container">
+          <Analytics />
+          {screen === "home" && (
           {screen==="home"&&(
             <>
               <div className="header">
