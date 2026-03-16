@@ -454,6 +454,18 @@ function unlockAudio(){
     ctx.resume().then(()=>{audioUnlocked=true;});
   }catch{}
 }
+function saveReport(question, reason, subject, chapter){
+  try{
+    const reports=JSON.parse(localStorage.getItem("brevet_reports")||"[]");
+    reports.unshift({
+      question:question?.substring(0,200),
+      reason, subject, chapter,
+      date:new Date().toISOString(),
+    });
+    localStorage.setItem("brevet_reports",JSON.stringify(reports.slice(0,50)));
+  }catch{}
+}
+
 function savePlanning(p,brevetDate,daysLeft){
   try{localStorage.setItem("brevet_plan",JSON.stringify({planning:p,brevetDate,daysLeft,savedAt:new Date().toISOString()}));}catch{}
 }
@@ -1209,6 +1221,18 @@ const css=`
   .badges-progress-fill{height:100%;background:linear-gradient(90deg,#7C3AED,#3B82F6);border-radius:999px;transition:width .8s cubic-bezier(.34,1.2,.64,1);}
   @keyframes fadeSlideIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
   .hint{text-align:center;font-size:12px;color:var(--muted);margin-top:6px;}
+  .report-btn{display:inline-flex;align-items:center;gap:5px;background:none;border:none;color:var(--muted);font-size:11px;cursor:pointer;padding:4px 8px;border-radius:8px;transition:all .15s;}
+  .report-btn:hover{background:#FEF2F2;color:#DC2626;}
+  .report-modal{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:200;display:flex;align-items:flex-end;justify-content:center;padding:0 12px 24px;}
+  .report-sheet{background:var(--surface);border-radius:20px 20px 16px 16px;padding:20px;width:100%;max-width:500px;animation:slideUp .3s cubic-bezier(.34,1.2,.64,1);}
+  @keyframes slideUp{from{transform:translateY(100%);opacity:0}to{transform:translateY(0);opacity:1}}
+  .report-title{font-family:var(--font-d);font-size:16px;font-weight:800;color:var(--text);margin-bottom:6px;}
+  .report-desc{font-size:12px;color:var(--muted);margin-bottom:14px;line-height:1.5;}
+  .report-options{display:flex;flex-direction:column;gap:8px;margin-bottom:14px;}
+  .report-option{padding:11px 14px;border-radius:12px;border:1.5px solid var(--border);background:var(--surface);color:var(--text);font-size:13px;text-align:left;cursor:pointer;transition:all .15s;}
+  .report-option:hover{border-color:#DC2626;background:#FEF2F2;color:#DC2626;}
+  .report-option.selected{border-color:#DC2626;background:#FEF2F2;color:#DC2626;font-weight:600;}
+  .report-success{text-align:center;padding:10px 0;}
   .err{color:#DC2626;text-align:center;padding:40px 0;}
   @media(max-width:600px){
     .subject-card,.training-card,.mode-card,.choice-btn,.btn-cta,.btn-ghost{transition-duration:.1s!important;}
@@ -1342,6 +1366,69 @@ function FloatTools({showCalc}){
   const[calc,setCalc]=useState(false);const[notes,setNotes]=useState(false);
   return(<><div className="float-tools">{showCalc&&<button className="float-btn float-btn-calc" onClick={()=>setCalc(v=>!v)}>🧮<span className="flbl">Calc</span></button>}<button className="float-btn float-btn-notes" onClick={()=>setNotes(v=>!v)}>📝<span className="flbl">Notes</span></button></div><div className="side-panels">{calc&&showCalc&&<Calculator onClose={()=>setCalc(false)}/>}{notes&&<Notes onClose={()=>setNotes(false)}/>}</div></>);
 }
+// ── Report Button ─────────────────────────────────────────────────────────────
+const REPORT_REASONS = [
+  "❌ La réponse correcte est fausse",
+  "📚 Question hors programme 3ème",
+  "🔤 Faute d'orthographe ou de grammaire",
+  "🔁 Question déjà posée dans ce quiz",
+  "❓ Question incompréhensible",
+  "⚠️ Autre problème",
+];
+
+function ReportButton({question, subject, chapter}){
+  const[open,setOpen]=useState(false);
+  const[selected,setSelected]=useState(null);
+  const[done,setDone]=useState(false);
+
+  const submit=()=>{
+    if(!selected)return;
+    saveReport(question,selected,subject,chapter);
+    setDone(true);
+    setTimeout(()=>{setOpen(false);setDone(false);setSelected(null);},2000);
+  };
+
+  return(
+    <>
+      <button className="report-btn" onClick={()=>setOpen(true)}>
+        🚩 Signaler une erreur
+      </button>
+
+      {open&&(
+        <div className="report-modal" onClick={e=>e.target===e.currentTarget&&setOpen(false)}>
+          <div className="report-sheet">
+            {done?(
+              <div className="report-success">
+                <div style={{fontSize:36,marginBottom:8}}>✅</div>
+                <div className="report-title">Merci pour ton signalement !</div>
+                <div className="report-desc">On prend ça en compte pour améliorer l'app.</div>
+              </div>
+            ):(
+              <>
+                <div className="report-title">🚩 Signaler une erreur</div>
+                <div className="report-desc">Cette question a un problème ? Dis-nous lequel — ça aide à améliorer l'app pour tout le monde.</div>
+                <div className="report-options">
+                  {REPORT_REASONS.map((r,i)=>(
+                    <button key={i} className={"report-option"+(selected===r?" selected":"")} onClick={()=>setSelected(r)}>
+                      {r}
+                    </button>
+                  ))}
+                </div>
+                <button className="btn-cta" disabled={!selected} onClick={submit}>
+                  Envoyer le signalement
+                </button>
+                <button className="btn-secondary" onClick={()=>setOpen(false)}>
+                  Annuler
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
 function GeoFigure({question}){
   const[st,setSt]=useState("idle");const[svg,setSvg]=useState(null);
   const gen=async()=>{setSt("loading");try{const raw=await callClaudeText(buildSvgPrompt(question));const m=raw.match(/<svg[\s\S]*<\/svg>/i);setSvg(m?m[0]:null);setSt("done");}catch{setSt("err");}};
@@ -1708,8 +1795,9 @@ function StoriesMode({subject,chapter,isMix,onBack,onDone}){
         {selected&&(
           <div style={{marginTop:10}}>
             <div className="explanation"><strong>💡</strong>{q.explanation}</div>
-            <div style={{display:"flex",gap:8,marginTop:8}}>
-              <button className="btn-cta" onClick={()=>{playClick();next();}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+              <ReportButton question={q.question} subject={subject?.label} chapter={chapter}/>
+              <button className="btn-cta" style={{flex:1,marginLeft:10}} onClick={()=>{playClick();next();}}>
                 {idx===questions.length-1?"Voir mon score →":"Suivant →"}
               </button>
             </div>
@@ -2219,6 +2307,9 @@ function QuizMode({subject,chapter,isMix,count,onBack,onStatsUpdate,showFiche=fa
       </div>
       {selected&&<>
         <div className="explanation"><strong>💡 Explication</strong>{q.explanation}</div>
+        <div style={{display:"flex",justifyContent:"flex-end",marginBottom:6}}>
+          <ReportButton question={q.question} subject={subject?.label} chapter={chapter}/>
+        </div>
         {isWrong&&!errorExplain&&!loadingExplain&&<button className="btn-secondary" style={{marginBottom:10}} onClick={askExplain}>🤔 Pourquoi ma réponse était fausse ?</button>}
         {loadingExplain&&<p style={{textAlign:"center",fontSize:12,color:"var(--accent)",marginBottom:10}}>Analyse…</p>}
         {errorExplain&&<div className="error-explain"><strong>🔍 Comprendre l'erreur</strong>{errorExplain}</div>}
@@ -2835,6 +2926,28 @@ export default function App(){
                   <button className="btn-danger" onClick={()=>{if(window.confirm("Tu veux vraiment tout effacer ? (XP, streak, badges…) Impossible de revenir en arrière !")){localStorage.removeItem("brevet_v3");setStats({...EMPTY});}}}>
                     🗑️ Réinitialiser mes stats
                   </button>
+                  <div className="divider"/>
+                  <div className="section-title">🚩 Signalements</div>
+                  {(()=>{
+                    const reports=JSON.parse(localStorage.getItem("brevet_reports")||"[]");
+                    if(reports.length===0)return<p style={{fontSize:12,color:"var(--muted)",marginBottom:8}}>Aucun signalement pour l'instant.</p>;
+                    return(
+                      <div style={{display:"flex",flexDirection:"column",gap:8,marginBottom:8}}>
+                        <p style={{fontSize:12,color:"var(--muted)",marginBottom:4}}>{reports.length} signalement{reports.length>1?"s":" "} enregistré{reports.length>1?"s":""}</p>
+                        {reports.slice(0,5).map((r,i)=>(
+                          <div key={i} style={{background:"#FEF2F2",border:"1.5px solid #FECACA",borderRadius:10,padding:"9px 12px"}}>
+                            <div style={{fontSize:11,fontWeight:700,color:"#DC2626",marginBottom:3}}>{r.reason}</div>
+                            <div style={{fontSize:11,color:"#991B1B",marginBottom:2}}>{r.subject}{r.chapter?` · ${r.chapter}`:""}</div>
+                            <div style={{fontSize:10,color:"#9CA3AF"}}>{r.question?.substring(0,80)}…</div>
+                          </div>
+                        ))}
+                        {reports.length>5&&<p style={{fontSize:11,color:"var(--muted)"}}>+{reports.length-5} autres signalements</p>}
+                        <button className="btn-secondary" style={{fontSize:12}} onClick={()=>{localStorage.removeItem("brevet_reports");window.location.reload();}}>
+                          Effacer tous les signalements
+                        </button>
+                      </div>
+                    );
+                  })()}
                 </>
               )}
 
