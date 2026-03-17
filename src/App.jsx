@@ -645,7 +645,7 @@ function playSound(type){
 async function withMinDelay(promise,ms=700){const[r]=await Promise.all([promise,new Promise(res=>setTimeout(res,ms))]);return r;}
 const SYSTEM_PROMPT = `Tu es un professeur expert du Brevet des collèges français (DNB), spécialisé dans la préparation des élèves de 3ème. Tes questions sont précises, pédagogiques, et strictement conformes au programme officiel du cycle 4. Tu varies toujours les formulations, les angles d'approche et les niveaux de difficulté. Tu génères UNIQUEMENT du JSON valide, sans backticks, sans texte avant ou après.`;
 
-async function callClaude(prompt,system,maxTokens=2000,retries=2){
+async function callClaude(prompt,system,maxTokens=2000,retries=3){
   const sys=system||SYSTEM_PROMPT;
   for(let attempt=0;attempt<retries;attempt++){
     try{
@@ -656,6 +656,10 @@ async function callClaude(prompt,system,maxTokens=2000,retries=2){
       if(data.error){
         // Rate limit : ne pas réessayer, laisser l'utilisateur réessayer manuellement
         if(data.error.type==="rate_limit_error"||data.error.message?.includes("rate")){
+          if(attempt<retries-1){
+            await new Promise(res=>setTimeout(res,3000*(attempt+1)));
+            continue;
+          }
           const err=new Error("rate_limit");
           err.isRateLimit=true;
           throw err;
@@ -696,6 +700,7 @@ const buildQuizPrompt=(subject,chapter,weak=[],count=5,seen=[])=>{
   return`[Seed:${seed}] Génère exactement ${count} QCM NOUVEAUX et variés sur "${subject}"${chapter?` chapitre "${chapter}"`:" (sujets les plus probables au brevet)"}.${hint}${avoid}
 Difficulté : ${diff}.
 Programme officiel 3ème. Varie les formulations, niveaux, angles d'approche.
+IMPORTANT : explications courtes (max 2 phrases). Questions et choix concis.
 JSON:{"questions":[{"question":"...","chapter":"...","choices":["A. ...","B. ...","C. ...","D. ..."],"answer":"A","explanation":"..."}]}`;
 };
 const buildMixPrompt=(seen=[])=>{
@@ -1837,7 +1842,7 @@ function StoriesMode({subject,chapter,isMix,onBack,onDone}){
   useEffect(()=>{
     const seen=isMix?getSeenQuestions("mix"):getSeenQuestions(subject?.id||"");
     const prompt=isMix?buildMixPrompt(seen):buildQuizPrompt(subject.label,chapter,[],5,seen);
-    withMinDelay(callClaude(prompt,null,1200)).then(d=>{
+    withMinDelay(callClaude(prompt,null,2000)).then(d=>{
       const qs=d.questions||[];
       addSeenQuestions(isMix?"mix":subject?.id||"",qs);
       setQuestions(qs);setState("quiz");
@@ -1863,7 +1868,7 @@ function StoriesMode({subject,chapter,isMix,onBack,onDone}){
   };
 
   if(state==="loading")return<Spinner text="Chargement des stories…"/>;
-  if(state==="error")return<ErrorRetry isRateLimit={isRateLimit} onRetry={()=>setPhase("loading")}/>;
+  if(state==="error")return<ErrorRetry isRateLimit={isRateLimit} onRetry={handleRetry}/>;
   const q=questions[idx];
   return(
     <div>
@@ -2294,26 +2299,33 @@ function QuizMode({subject,chapter,isMix,count,onBack,onStatsUpdate,showFiche=fa
   const[etymology,setEtymology]=useState(null);
   const[loadingExplain,setLoadingExplain]=useState(false);
   const[isRateLimit,setIsRateLimit]=useState(false);
+  const[retryTick,setRetryTick]=useState(0);
   const nextRef=useRef(null);
   const isGeo=subject?.id==="maths"&&GEO_CHAPTERS.includes(chapter);
   const qCount=count||5;
   const weak=getWeak(getStats(),subject?.id||"");
   const seen=isMix?getSeenQuestions("mix"):getSeenQuestions(subject?.id||"");
 
-  const loadQuestions=useCallback(()=>{
-    // Vérifier la limite quotidienne
+  const doLoad=()=>{
     if(getDailyQuestionsLeft()<=0){setPhase("limit");return;}
+    setPhase("loading");
     const prompt=isMix?buildMixPrompt(seen):buildQuizPrompt(subject.label,chapter,weak,qCount,seen);
-    withMinDelay(callClaude(prompt,null,1200)).then(d=>{
+    withMinDelay(callClaude(prompt,null,2000)).then(d=>{
       const qs=d.questions||[];
       setQuestions(qs);
       addSeenQuestions(isMix?"mix":subject?.id||"",qs);
       trackDailyQuestions(qs.length);
       setPhase("question");
     }).catch(e=>{setIsRateLimit(e?.isRateLimit||false);setPhase("error");});
-  },[]);
+  };
 
-  useEffect(()=>{if(phase==="loading")loadQuestions();},[phase]);
+  // Charge au montage + à chaque retry
+  useEffect(()=>{
+    if(showFiche)return; // la fiche charge d'abord
+    doLoad();
+  },[retryTick]);
+
+  const handleRetry=()=>setRetryTick(t=>t+1);
 
   useEffect(()=>{
     if(phase==="question"&&idx===2&&!nextRef.current){
@@ -2356,7 +2368,7 @@ function QuizMode({subject,chapter,isMix,count,onBack,onStatsUpdate,showFiche=fa
     setLoadingExplain(false);
   };
 
-  if(phase==="fiche")return<MiniFiche subject={subject?.label} chapter={chapter} onContinue={()=>setPhase("loading")} onSkip={()=>setPhase("loading")}/>;
+  if(phase==="fiche")return<MiniFiche subject={subject?.label} chapter={chapter} onContinue={()=>doLoad()} onSkip={()=>doLoad()}/>;
   if(phase==="limit")return(
     <div className="score-wrap">
       <div style={{fontSize:48,marginBottom:12}}>🌙</div>
