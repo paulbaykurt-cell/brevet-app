@@ -862,7 +862,9 @@ Weekends : max 1-2 sessions légères. Jours de semaine : 2-3 sessions de 20 min
 RÉPONDS UNIQUEMENT avec ce JSON valide, rien d'autre :
 ${jsonExample}`;
 };
-const buildSvgPrompt=q=>`SVG simple (viewBox="0 0 220 180") pour: "${q}". stroke="#3B82F6" fill="none" strokeWidth="2", labels fill="#1E3A5F" fontSize="12". SVG uniquement.`;
+const buildSvgPrompt=q=>`Dessine un SVG simple (viewBox="0 0 220 180") illustrant UNIQUEMENT la figure géométrique de cette question : "${q}".
+IMPORTANT : affiche SEULEMENT les données connues (longueurs données, angles droits, labels des points). N'écris PAS la résolution, PAS les calculs, PAS la réponse.
+Style : stroke="#3B82F6" fill="none" strokeWidth="2", labels fill="#1E3A5F" fontSize="12". SVG uniquement, pas de texte autour.`;
 
 // ── CSS ───────────────────────────────────────────────────────────────────────
 const css=`
@@ -984,11 +986,11 @@ const css=`
   .count-btn.selected{background:#2563EB;color:#fff;border-color:#2563EB;box-shadow:0 3px 0 #1E40AF;}
 
   /* Mini fiche */
-  .mini-fiche{background:linear-gradient(135deg,#F5F3FF,#EDE9FE);border:1.5px solid #C4B5FD;border-radius:14px;padding:14px;margin-bottom:14px;}
-  .mini-fiche-title{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:#6D28D9;font-weight:700;margin-bottom:10px;}
-  .mini-fiche-point{display:flex;gap:8px;margin-bottom:8px;font-size:13px;line-height:1.5;}
-  .mini-fiche-point-title{font-weight:700;color:#4C1D95;white-space:nowrap;}
-  .mini-fiche-point-text{color:#5B21B6;}
+  .mini-fiche{background:linear-gradient(135deg,#F5F3FF,#EDE9FE);border:1.5px solid #C4B5FD;border-radius:16px;padding:16px;margin-bottom:14px;}
+  .mini-fiche-title{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:#6D28D9;font-weight:700;margin-bottom:12px;}
+  .mini-fiche-point{display:block;margin-bottom:10px;padding:12px 14px;background:rgba(255,255,255,.7);border-radius:12px;border:1px solid #C4B5FD;}
+  .mini-fiche-point-title{font-weight:800;color:#4C1D95;font-size:13px;margin-bottom:5px;display:block;}
+  .mini-fiche-point-text{color:#5B21B6;font-size:13px;line-height:1.65;display:block;}
 
   /* Buttons */
   .btn-cta{display:block;width:100%;padding:15px 20px;border-radius:14px;border:none;background:linear-gradient(180deg,var(--cta1),var(--cta2));color:#fff;font-family:var(--font-d);font-size:15px;font-weight:800;cursor:pointer;transition:transform .16s cubic-bezier(.34,1.56,.64,1),box-shadow .16s;box-shadow:0 6px 0 var(--cta-shadow),0 8px 24px rgba(0,0,0,.2);user-select:none;position:relative;overflow:hidden;}
@@ -1379,13 +1381,31 @@ const REPORT_REASONS = [
 function ReportButton({question, subject, chapter}){
   const[open,setOpen]=useState(false);
   const[selected,setSelected]=useState(null);
+  const[description,setDescription]=useState("");
   const[done,setDone]=useState(false);
+
+  const FORM_BASE = "https://docs.google.com/forms/d/e/1FAIpQLScHWpkOxrewXK107XQ0-Z2ousRg2XStQE8aTFQwPbPvWRPmKA/formResponse";
+  const ENTRY = {
+    question:    "entry.1898786218",
+    raison:      "entry.1730117434",
+    matiere:     "entry.1866947180",
+    chapitre:    "entry.1865775528",
+    description: "entry.266801386", // ← à remplacer dès que tu m'envoies l'ID
+  };
 
   const submit=()=>{
     if(!selected)return;
     saveReport(question,selected,subject,chapter);
+    const params=new URLSearchParams({
+      [ENTRY.question]:    question?.substring(0,200)||"",
+      [ENTRY.raison]:      selected,
+      [ENTRY.matiere]:     subject||"",
+      [ENTRY.chapitre]:    chapter||"",
+      [ENTRY.description]: description||"",
+    });
+    fetch(`${FORM_BASE}?${params.toString()}`,{method:"POST",mode:"no-cors"}).catch(()=>{});
     setDone(true);
-    setTimeout(()=>{setOpen(false);setDone(false);setSelected(null);},2000);
+    setTimeout(()=>{setOpen(false);setDone(false);setSelected(null);setDescription("");},2000);
   };
 
   return(
@@ -1406,7 +1426,7 @@ function ReportButton({question, subject, chapter}){
             ):(
               <>
                 <div className="report-title">🚩 Signaler une erreur</div>
-                <div className="report-desc">Cette question a un problème ? Dis-nous lequel — ça aide à améliorer l'app pour tout le monde.</div>
+                <div className="report-desc">Cette question a un problème ? Dis-nous lequel.</div>
                 <div className="report-options">
                   {REPORT_REASONS.map((r,i)=>(
                     <button key={i} className={"report-option"+(selected===r?" selected":"")} onClick={()=>setSelected(r)}>
@@ -1414,10 +1434,19 @@ function ReportButton({question, subject, chapter}){
                     </button>
                   ))}
                 </div>
+                {selected&&(
+                  <textarea
+                    className="answer-area"
+                    style={{minHeight:70,marginBottom:10,fontSize:13}}
+                    placeholder="Décris l'erreur en détail (optionnel)…"
+                    value={description}
+                    onChange={e=>setDescription(e.target.value)}
+                  />
+                )}
                 <button className="btn-cta" disabled={!selected} onClick={submit}>
                   Envoyer le signalement
                 </button>
-                <button className="btn-secondary" onClick={()=>setOpen(false)}>
+                <button className="btn-secondary" onClick={()=>{setOpen(false);setSelected(null);setDescription("");}}>
                   Annuler
                 </button>
               </>
@@ -1430,12 +1459,29 @@ function ReportButton({question, subject, chapter}){
 }
 
 function GeoFigure({question}){
-  const[st,setSt]=useState("idle");const[svg,setSvg]=useState(null);
-  const gen=async()=>{setSt("loading");try{const raw=await callClaudeText(buildSvgPrompt(question));const m=raw.match(/<svg[\s\S]*<\/svg>/i);setSvg(m?m[0]:null);setSt("done");}catch{setSt("err");}};
+  const[st,setSt]=useState("idle");
+  const[svg,setSvg]=useState(null);
+  const[visible,setVisible]=useState(true);
+  const gen=async()=>{
+    setSt("loading");
+    const prompt=`SVG simple (viewBox="0 0 220 180") illustrant UNIQUEMENT la situation géométrique de : "${question}". IMPORTANT : NE PAS écrire la réponse, NE PAS faire les calculs dans la figure. Montre seulement les données connues et les labels (côtés, angles, points). stroke="#3B82F6" fill="none" strokeWidth="2", labels fill="#1E3A5F" fontSize="12". SVG uniquement.`;
+    try{const raw=await callClaudeText(prompt);const m=raw.match(/<svg[\s\S]*<\/svg>/i);setSvg(m?m[0]:null);setSt("done");}
+    catch{setSt("err");}
+  };
   if(st==="idle")return<button className="geo-btn" onClick={gen}>📐 Voir la figure</button>;
-  if(st==="loading")return<p style={{fontSize:12,color:"var(--accent)",marginTop:8}}>Génération…</p>;
-  if(!svg)return null;
-  return<div className="geo-figure" dangerouslySetInnerHTML={{__html:svg}}/>;
+  if(st==="loading")return<p style={{fontSize:12,color:"var(--accent)",marginTop:8}}>Génération de la figure…</p>;
+  if(st==="err"||!svg)return null;
+  return(
+    <div style={{marginTop:10}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
+        <span style={{fontSize:12,color:"var(--accent)",fontWeight:600}}>📐 Figure (sans la réponse)</span>
+        <button onClick={()=>setVisible(v=>!v)} style={{background:"var(--bg2)",border:"1.5px solid var(--border)",borderRadius:8,padding:"4px 12px",fontSize:11,color:"var(--muted)",cursor:"pointer",fontWeight:600}}>
+          {visible?"Masquer ✕":"Afficher ▼"}
+        </button>
+      </div>
+      {visible&&<div className="geo-figure" dangerouslySetInnerHTML={{__html:svg}}/>}
+    </div>
+  );
 }
 
 // ── Welcome Back ──────────────────────────────────────────────────────────────
@@ -1711,7 +1757,7 @@ function MiniFiche({subject,chapter,onContinue,onSkip}){
         <div className="mini-fiche-title">📋 Mini-fiche — {chapter||subject}</div>
         {points.map((p,i)=>(
           <div key={i} className="mini-fiche-point">
-            <span className="mini-fiche-point-title">{i+1}. {p.titre} :</span>
+            <span className="mini-fiche-point-title">{i+1}. {p.titre}</span>
             <span className="mini-fiche-point-text">{p.contenu}</span>
           </div>
         ))}
