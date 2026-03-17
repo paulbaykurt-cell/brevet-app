@@ -1226,7 +1226,7 @@ const css=`
   .report-btn{display:inline-flex;align-items:center;gap:5px;background:none;border:none;color:var(--muted);font-size:11px;cursor:pointer;padding:4px 8px;border-radius:8px;transition:all .15s;}
   .report-btn:hover{background:#FEF2F2;color:#DC2626;}
   .report-modal{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:200;display:flex;align-items:flex-end;justify-content:center;padding:0 12px 24px;}
-  .report-sheet{background:var(--surface);border-radius:20px 20px 16px 16px;padding:20px;width:100%;max-width:500px;animation:slideUp .3s cubic-bezier(.34,1.2,.64,1);}
+  .report-sheet{background:var(--surface);border-radius:20px 20px 16px 16px;padding:20px;width:100%;max-width:500px;max-height:85vh;overflow-y:auto;animation:slideUp .3s cubic-bezier(.34,1.2,.64,1);}
   @keyframes slideUp{from{transform:translateY(100%);opacity:0}to{transform:translateY(0);opacity:1}}
   .report-title{font-family:var(--font-d);font-size:16px;font-weight:800;color:var(--text);margin-bottom:6px;}
   .report-desc{font-size:12px;color:var(--muted);margin-bottom:14px;line-height:1.5;}
@@ -2135,6 +2135,9 @@ function ExamMode({onBack, onStatsUpdate}){
                     <div className="points-cles">{q.points_cles.map((p,i)=><div key={i} className="point">{p}</div>)}</div></>
                   )}
                 </div>
+                <div style={{display:"flex",justifyContent:"flex-end",marginBottom:8}}>
+                  <ReportButton question={q.question} subject={ex?.label} chapter={currentPart?.part}/>
+                </div>
 
                 {/* Notation IA */}
                 {answers[partIdx]?.trim().length>10&&!grades[partIdx]&&gradingIdx!==partIdx&&(
@@ -2449,6 +2452,9 @@ function LongMode({subject,chapter,isMix,onBack,onStatsUpdate,showFiche=false}){
             <h3>📝 Correction type</h3>
             <div className="correction-text">{data.correction}</div>
             {data.points_cles?.length>0&&(<><div style={{fontSize:10,letterSpacing:2,textTransform:"uppercase",color:"#6D28D9",marginTop:12,marginBottom:6,fontWeight:700}}>Points clés attendus</div><div className="points-cles">{data.points_cles.map((p,i)=><div key={i} className="point">{p}</div>)}</div></>)}
+          </div>
+          <div style={{display:"flex",justifyContent:"flex-end",marginBottom:8}}>
+            <ReportButton question={data.question} subject={isMix?data.matiere:subject?.label} chapter={chapter}/>
           </div>
           <div style={{marginBottom:12,background:"var(--surface2)",borderRadius:12,padding:12,border:"1.5px solid var(--border)"}}>
             <div style={{fontSize:10,letterSpacing:2,textTransform:"uppercase",color:"var(--muted)",marginBottom:6,fontWeight:700}}>Ta réponse</div>
