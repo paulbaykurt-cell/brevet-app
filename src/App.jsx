@@ -2831,7 +2831,21 @@ export default function App(){
   const refresh=s=>setStats(s||getStats());
 
   const startPlanningSession=session=>{
-    const s=SUBJECTS.find(s=>s.label===session.matiere);
+    // Cherche d'abord par label exact, puis par correspondance partielle
+    let s=SUBJECTS.find(s=>s.label===session.matiere);
+    if(!s)s=SUBJECTS.find(s=>session.matiere?.toLowerCase().includes(s.label.toLowerCase())||s.label.toLowerCase().includes(session.matiere?.toLowerCase()));
+    if(!s){
+      // Fallback : cherche par mots-clés connus
+      const m=session.matiere?.toLowerCase()||"";
+      if(m.includes("math"))s=SUBJECTS.find(s=>s.id==="maths");
+      else if(m.includes("fran"))s=SUBJECTS.find(s=>s.id==="francais");
+      else if(m.includes("hist"))s=SUBJECTS.find(s=>s.id==="histoire");
+      else if(m.includes("geo"))s=SUBJECTS.find(s=>s.id==="geo");
+      else if(m.includes("svt")||m.includes("science"))s=SUBJECTS.find(s=>s.id==="svt");
+      else if(m.includes("phys"))s=SUBJECTS.find(s=>s.id==="physique");
+      else if(m.includes("emc")||m.includes("civil"))s=SUBJECTS.find(s=>s.id==="emc");
+      else if(m.includes("tech"))s=SUBJECTS.find(s=>s.id==="techno");
+    }
     if(!s)return;
     setSubject(s);setChapter(session.chapitre||null);setIsMix(false);
     setMode(session.exercice?.toLowerCase().includes("long")?"long":"quiz");
