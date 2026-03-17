@@ -158,7 +158,25 @@ const LOADING_MESSAGES = [
 ];
 
 // ── STATS ─────────────────────────────────────────────────────────────────────
-const EMPTY = {streak:0,lastSession:null,xp:0,totalSessions:0,bestScore:0,badges:[],subjectXP:{},weakChapters:{},sessionHistory:[],dailyGoal:2,todaySessions:0,lastGoalDate:null};
+const EMPTY = {streak:0,lastSession:null,xp:0,totalSessions:0,bestScore:0,badges:[],subjectXP:{},weakChapters:{},sessionHistory:[],dailyGoal:2,todaySessions:0,lastGoalDate:null,dailyQuestions:0,lastQuestionDate:null};
+const DAILY_QUESTION_LIMIT = 30;
+
+function getDailyQuestionsLeft(){
+  try{
+    const s=getStats();
+    const today=new Date().toISOString().split("T")[0];
+    if(s.lastQuestionDate!==today)return DAILY_QUESTION_LIMIT;
+    return Math.max(0,DAILY_QUESTION_LIMIT-(s.dailyQuestions||0));
+  }catch{return DAILY_QUESTION_LIMIT;}
+}
+function trackDailyQuestions(count=5){
+  try{
+    const s=getStats();
+    const today=new Date().toISOString().split("T")[0];
+    const current=s.lastQuestionDate===today?(s.dailyQuestions||0):0;
+    saveStats({...s,dailyQuestions:current+count,lastQuestionDate:today});
+  }catch{}
+}
 function saveStats(s){
   try{
     localStorage.setItem("brevet_v3",JSON.stringify(s));
@@ -757,33 +775,25 @@ const EXAM_SUBJECTS = [
 ];
 
 const PAST_SUBJECTS = {
-  francais: `Sujets réels des brevets précédents :
-- 2023 : Texte de Romain Gary "La promesse de l'aube" — compréhension + rédaction sur la famille
-- 2022 : Texte de Zola — description naturaliste, figures de style, réécriture à l'imparfait
-- 2021 : Texte sur l'écologie — argumentation, connecteurs logiques, rédaction
-- 2019 : Texte de Maupassant — point de vue narratif, champ lexical, réécriture
-Thèmes récurrents : famille, nature, société, liberté, amitié`,
+  francais: `Brevets récents :
+- 2023 : Romain Gary — compréhension, rédaction sur la famille
+- 2022 : Zola — figures de style, réécriture à l'imparfait
+Thèmes : famille, nature, société, liberté`,
 
-  maths: `Sujets réels des brevets précédents :
-- 2023 : Théorème de Pythagore (triangle rectangle), statistiques (moyenne, médiane), équations du premier degré, probabilités (urne), problème de géométrie dans l'espace (volume d'un cône)
-- 2022 : Thalès (droites parallèles), fonctions affines, calcul littéral, fractions, trigonométrie, statistiques (diagramme)
-- 2021 : Pythagore + réciproque, expressions algébriques, probabilités (tableau de loi), géométrie plane (aires), repérage cartésien
-- 2019 : Proportionnalité, équations, inéquations, géométrie (Thalès), statistiques (quartiles)
-Thèmes récurrents : Pythagore, Thalès, probabilités, statistiques, fonctions affines`,
+  maths: `Brevets récents :
+- 2023 : Pythagore, stats (moyenne/médiane), probabilités, volume cône
+- 2022 : Thalès, fonctions affines, trigonométrie
+Thèmes : Pythagore, Thalès, probabilités, statistiques`,
 
-  histoire: `Sujets réels des brevets précédents :
-- 2023 : Histoire = La Guerre Froide (Berlin, Cuba), Géo = La mondialisation des échanges, EMC = La laïcité en France
-- 2022 : Histoire = La 2ème Guerre Mondiale (Shoah, Résistance), Géo = Espaces urbains dans le monde, EMC = Droits et libertés fondamentaux
-- 2021 : Histoire = La Ve République (De Gaulle, institutions), Géo = Les inégalités de développement, EMC = La démocratie représentative
-- 2019 : Histoire = La décolonisation, Géo = L'Union Européenne, EMC = Engagement citoyen
-Thèmes récurrents : 2GM, Guerre Froide, Ve République, mondialisation, développement durable`,
+  histoire: `Brevets récents :
+- 2023 : Guerre Froide, mondialisation, laïcité
+- 2022 : 2GM (Shoah, Résistance), espaces urbains
+Thèmes : 2GM, Guerre Froide, Ve République`,
 
-  sciences: `Sujets réels des brevets précédents :
-- 2023 : SVT = Génétique (ADN, mutations, hérédité), Physique = Électricité (circuits, loi d'Ohm), Techno = Objets connectés et programmation Python
-- 2022 : SVT = Écosystèmes et biodiversité, Physique = Optique (lumière, lentilles), Techno = Développement durable et éco-conception
-- 2021 : SVT = Corps humain (système immunitaire, vaccins), Physique = Mécanique (vitesse, forces), Techno = Algorithmes et systèmes embarqués
-- 2019 : SVT = Reproduction et génétique, Physique = Énergie (puissance, rendement), Techno = Réseaux et protocoles
-Thèmes récurrents : génétique, électricité, écosystèmes, optique, programmation`,
+  sciences: `Brevets récents :
+- 2023 : Génétique (ADN), électricité (loi d'Ohm), Python
+- 2022 : Écosystèmes, optique, développement durable
+Thèmes : génétique, électricité, écosystèmes`,
 };
 
 const buildRealExamPrompt = (examSubject, partIndex) => {
@@ -1518,7 +1528,9 @@ function DailyGoal({stats}){
   const done=stats.todaySessions||0;
   const goal=stats.dailyGoal||2;
   const pct=Math.min(100,(done/goal)*100);
-  const color=pct>=100?"#059669":"#3B82F6";
+  const color=pct>=100?"#059669":"var(--accent)";
+  const questionsLeft=getDailyQuestionsLeft();
+  const qPct=Math.min(100,((DAILY_QUESTION_LIMIT-questionsLeft)/DAILY_QUESTION_LIMIT)*100);
   return(
     <div className="daily-goal">
       <div className="daily-goal-header">
@@ -1526,6 +1538,10 @@ function DailyGoal({stats}){
         <div className="daily-goal-count" style={{color}}>{done}/{goal} sessions{pct>=100?" ✅":""}</div>
       </div>
       <div className="goal-bar"><div className="goal-fill" style={{width:`${pct}%`,background:pct>=100?"linear-gradient(90deg,#10B981,#059669)":undefined}}/></div>
+      <div style={{display:"flex",justifyContent:"space-between",fontSize:11,color:"var(--muted)",marginTop:7}}>
+        <span>Questions aujourd'hui</span>
+        <span style={{fontWeight:700,color:questionsLeft<=5?"#DC2626":"var(--muted)"}}>{DAILY_QUESTION_LIMIT-questionsLeft}/{DAILY_QUESTION_LIMIT}{questionsLeft<=5?" ⚠️":""}</span>
+      </div>
     </div>
   );
 }
@@ -1638,7 +1654,7 @@ function SessionHistory({stats}){
 function AISummary({stats,onBack}){
   const[state,setState]=useState("loading");
   const[data,setData]=useState(null);
-  useEffect(()=>{withMinDelay(callClaude(buildSummaryPrompt(stats.weakChapters,stats.subjectXP),null,1500)).then(d=>{setData(d);setState("done");}).catch(()=>setState("error"));},[]);
+  useEffect(()=>{withMinDelay(callClaude(buildSummaryPrompt(stats.weakChapters,stats.subjectXP),null,1000)).then(d=>{setData(d);setState("done");}).catch(()=>setState("error"));},[]);
   if(state==="loading")return<><button className="btn-ghost" onClick={onBack}>← Retour</button><Spinner text="L'IA analyse tes révisions…"/></>;
   if(state==="error")return<><button className="btn-ghost" onClick={onBack}>← Retour</button><p className="err">Erreur. Réessaie !</p></>;
   return(
@@ -1676,7 +1692,7 @@ function VeilleMode({onBack,onStatsUpdate}){
     setStep("loading"); // ← on sort du pick immédiatement
     setState("loading");
     try{
-      const d=await withMinDelay(callClaude(buildVeillePrompt(s.label),null,2500));
+      const d=await withMinDelay(callClaude(buildVeillePrompt(s.label),null,1500));
       setNotions(d.notions||[]);setStep("done");setState("done");
       let stats=getStats();stats=updateStreak(stats);
       const{updated}=addXP(stats,5,s.id);
@@ -1745,7 +1761,7 @@ function MiniFiche({subject,chapter,onContinue,onSkip}){
   const[state,setState]=useState("loading");
   const[points,setPoints]=useState([]);
   useEffect(()=>{
-    withMinDelay(callClaude(buildFichePrompt(subject,chapter)),400)
+    withMinDelay(callClaude(buildFichePrompt(subject,chapter),null,400),400)
       .then(d=>{setPoints(d.points||[]);setState("done");})
       .catch(()=>{setState("error");onSkip();});
   },[]);
@@ -1790,7 +1806,7 @@ function StoriesMode({subject,chapter,isMix,onBack,onDone}){
   useEffect(()=>{
     const seen=isMix?getSeenQuestions("mix"):getSeenQuestions(subject?.id||"");
     const prompt=isMix?buildMixPrompt(seen):buildQuizPrompt(subject.label,chapter,[],5,seen);
-    withMinDelay(callClaude(prompt)).then(d=>{
+    withMinDelay(callClaude(prompt,null,1200)).then(d=>{
       const qs=d.questions||[];
       addSeenQuestions(isMix?"mix":subject?.id||"",qs);
       setQuestions(qs);setState("quiz");
@@ -1926,7 +1942,7 @@ function ExamMode({onBack, onStatsUpdate}){
     if(!ans.trim()||!q)return;
     setGradingIdx(idx);
     try{
-      const d=await callClaude(buildGradePrompt(q.question,ans,q.correction),null,1500);
+      const d=await callClaude(buildGradePrompt(q.question,ans,q.correction),null,600);
       setGrades(g=>({...g,[idx]:d}));
     }catch{}
     setGradingIdx(null);
@@ -2253,12 +2269,14 @@ function QuizMode({subject,chapter,isMix,count,onBack,onStatsUpdate,showFiche=fa
   const seen=isMix?getSeenQuestions("mix"):getSeenQuestions(subject?.id||"");
 
   const loadQuestions=useCallback(()=>{
+    // Vérifier la limite quotidienne
+    if(getDailyQuestionsLeft()<=0){setPhase("limit");return;}
     const prompt=isMix?buildMixPrompt(seen):buildQuizPrompt(subject.label,chapter,weak,qCount,seen);
-    withMinDelay(callClaude(prompt)).then(d=>{
+    withMinDelay(callClaude(prompt,null,1200)).then(d=>{
       const qs=d.questions||[];
       setQuestions(qs);
-      // Sauvegarder les questions vues
       addSeenQuestions(isMix?"mix":subject?.id||"",qs);
+      trackDailyQuestions(qs.length);
       setPhase("question");
     }).catch(()=>setPhase("error"));
   },[]);
@@ -2298,7 +2316,7 @@ function QuizMode({subject,chapter,isMix,count,onBack,onStatsUpdate,showFiche=fa
   const askExplain=async()=>{
     setLoadingExplain(true);
     try{
-      const d=await callClaude(buildErrorPrompt(q.question,selected,q.answer,subject?.id||""));
+      const d=await callClaude(buildErrorPrompt(q.question,selected,q.answer,subject?.id||""),null,300);
       setErrorExplain(d.explication_erreur);
       if(d.etymologie&&d.etymologie.trim().length>3)setEtymology(d.etymologie);
     }
@@ -2307,6 +2325,14 @@ function QuizMode({subject,chapter,isMix,count,onBack,onStatsUpdate,showFiche=fa
   };
 
   if(phase==="fiche")return<MiniFiche subject={subject?.label} chapter={chapter} onContinue={()=>setPhase("loading")} onSkip={()=>setPhase("loading")}/>;
+  if(phase==="limit")return(
+    <div className="score-wrap">
+      <div style={{fontSize:48,marginBottom:12}}>🌙</div>
+      <div className="score-message">Tu as bien révisé aujourd'hui !</div>
+      <div className="score-sub" style={{marginBottom:16}}>Limite de {DAILY_QUESTION_LIMIT} questions atteinte. Reviens demain — les révisions régulières sont plus efficaces qu'une session marathon !</div>
+      <button className="btn-cta" onClick={onBack}>Retour à l'accueil</button>
+    </div>
+  );
   if(phase==="loading")return<><Spinner/><FloatTools showCalc={subject?.id==="maths"||subject?.id==="physique"}/></>;
   if(phase==="error")return<p className="err">L'IA est surchargée — attends 10 secondes et réessaie !</p>;
 
@@ -2386,7 +2412,7 @@ function LongMode({subject,chapter,isMix,onBack,onStatsUpdate,showFiche=false}){
   useEffect(()=>{
     if(phase==="loading"){
       const prompt=isMix?buildMixLongPrompt():buildLongPrompt(subject?.label,chapter);
-      withMinDelay(callClaude(prompt)).then(d=>{setData(d);setPhase("question");}).catch(()=>setPhase("error"));
+      withMinDelay(callClaude(prompt,null,800)).then(d=>{setData(d);setPhase("question");}).catch(()=>setPhase("error"));
     }
   },[phase]);
 
@@ -2394,7 +2420,7 @@ function LongMode({subject,chapter,isMix,onBack,onStatsUpdate,showFiche=false}){
 
   const handleGrade=async()=>{
     setGrading(true);
-    try{const d=await callClaude(buildGradePrompt(data.question,answer,data.correction));setGrade(d);}
+    try{const d=await callClaude(buildGradePrompt(data.question,answer,data.correction),null,600);setGrade(d);}
     catch{setGrade(null);}
     setGrading(false);
     // XP
