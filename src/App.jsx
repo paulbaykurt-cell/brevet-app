@@ -645,7 +645,7 @@ function playSound(type){
 async function withMinDelay(promise,ms=700){const[r]=await Promise.all([promise,new Promise(res=>setTimeout(res,ms))]);return r;}
 const SYSTEM_PROMPT = `Tu es un professeur expert du Brevet des collèges français (DNB), spécialisé dans la préparation des élèves de 3ème. Tes questions sont précises, pédagogiques, et strictement conformes au programme officiel du cycle 4. Tu varies toujours les formulations, les angles d'approche et les niveaux de difficulté. Tu génères UNIQUEMENT du JSON valide, sans backticks, sans texte avant ou après.`;
 
-async function callClaude(prompt,system,maxTokens=2000,retries=3){
+async function callClaude(prompt,system,maxTokens=2000,retries=2){
   const sys=system||SYSTEM_PROMPT;
   for(let attempt=0;attempt<retries;attempt++){
     try{
@@ -654,12 +654,11 @@ async function callClaude(prompt,system,maxTokens=2000,retries=3){
           system:sys,messages:[{role:"user",content:prompt}]})});
       const data=await r.json();
       if(data.error){
-        // Rate limit : attendre plus longtemps avant de réessayer
+        // Rate limit : ne pas réessayer, laisser l'utilisateur réessayer manuellement
         if(data.error.type==="rate_limit_error"||data.error.message?.includes("rate")){
-          if(attempt<retries-1){
-            await new Promise(res=>setTimeout(res,5000*(attempt+1)));
-            continue;
-          }
+          const err=new Error("rate_limit");
+          err.isRateLimit=true;
+          throw err;
         }
         throw new Error(data.error.message||"Erreur API");
       }
@@ -1265,6 +1264,38 @@ function Spinner({text}){
   const msg = text || LOADING_MESSAGES[Math.floor(Math.random()*LOADING_MESSAGES.length)];
   return <div className="loading"><div className="spin-ring"/><p>{msg}</p></div>;
 }
+
+function ErrorRetry({onRetry, isRateLimit}){
+  const[countdown,setCountdown]=useState(isRateLimit?15:0);
+  useEffect(()=>{
+    if(countdown<=0)return;
+    const t=setInterval(()=>setCountdown(v=>{if(v<=1){clearInterval(t);return 0;}return v-1;}),1000);
+    return()=>clearInterval(t);
+  },[]);
+  return(
+    <div style={{textAlign:"center",padding:"30px 0"}}>
+      <div style={{fontSize:40,marginBottom:12}}>{isRateLimit?"⏳":"😕"}</div>
+      <div style={{fontFamily:"var(--font-d)",fontSize:16,fontWeight:800,color:"var(--text)",marginBottom:8}}>
+        {isRateLimit?"L'IA est surchargée":"Problème de connexion"}
+      </div>
+      <div style={{fontSize:13,color:"var(--muted)",marginBottom:20,lineHeight:1.6}}>
+        {isRateLimit
+          ?"Trop de demandes en même temps. Patiente un instant avant de réessayer."
+          :"Un souci technique est survenu. Réessaie !"}
+      </div>
+      {countdown>0?(
+        <div style={{background:"var(--bg2)",border:"1.5px solid var(--border)",borderRadius:14,padding:"14px 20px",display:"inline-block",marginBottom:16}}>
+          <div style={{fontFamily:"var(--font-d)",fontSize:28,fontWeight:800,color:"var(--accent)"}}>{countdown}s</div>
+          <div style={{fontSize:11,color:"var(--muted)"}}>avant de pouvoir réessayer</div>
+        </div>
+      ):(
+        <button className="btn-cta" style={{maxWidth:280,margin:"0 auto"}} onClick={onRetry}>
+          ↩ Réessayer maintenant
+        </button>
+      )}
+    </div>
+  );
+}
 function Calculator({onClose}){
   const[display,setDisplay]=useState("0");
   const[expr,setExpr]=useState("");
@@ -1832,7 +1863,7 @@ function StoriesMode({subject,chapter,isMix,onBack,onDone}){
   };
 
   if(state==="loading")return<Spinner text="Chargement des stories…"/>;
-  if(state==="error")return<p className="err">L'IA est surchargée — attends 10 secondes et réessaie !</p>;
+  if(state==="error")return<ErrorRetry isRateLimit={isRateLimit} onRetry={()=>setPhase("loading")}/>;
   const q=questions[idx];
   return(
     <div>
@@ -2262,6 +2293,7 @@ function QuizMode({subject,chapter,isMix,count,onBack,onStatsUpdate,showFiche=fa
   const[errorExplain,setErrorExplain]=useState(null);
   const[etymology,setEtymology]=useState(null);
   const[loadingExplain,setLoadingExplain]=useState(false);
+  const[isRateLimit,setIsRateLimit]=useState(false);
   const nextRef=useRef(null);
   const isGeo=subject?.id==="maths"&&GEO_CHAPTERS.includes(chapter);
   const qCount=count||5;
@@ -2278,7 +2310,7 @@ function QuizMode({subject,chapter,isMix,count,onBack,onStatsUpdate,showFiche=fa
       addSeenQuestions(isMix?"mix":subject?.id||"",qs);
       trackDailyQuestions(qs.length);
       setPhase("question");
-    }).catch(()=>setPhase("error"));
+    }).catch(e=>{setIsRateLimit(e?.isRateLimit||false);setPhase("error");});
   },[]);
 
   useEffect(()=>{if(phase==="loading")loadQuestions();},[phase]);
@@ -2334,7 +2366,7 @@ function QuizMode({subject,chapter,isMix,count,onBack,onStatsUpdate,showFiche=fa
     </div>
   );
   if(phase==="loading")return<><Spinner/><FloatTools showCalc={subject?.id==="maths"||subject?.id==="physique"}/></>;
-  if(phase==="error")return<p className="err">L'IA est surchargée — attends 10 secondes et réessaie !</p>;
+  if(phase==="error")return<ErrorRetry isRateLimit={true} onRetry={()=>setPhase("loading")}/>;
 
   const q=questions[idx];
   const isLast=idx===questions.length-1;
@@ -2434,7 +2466,7 @@ function LongMode({subject,chapter,isMix,onBack,onStatsUpdate,showFiche=false}){
 
   if(phase==="fiche")return<MiniFiche subject={subject?.label} chapter={chapter} onContinue={()=>setPhase("loading")} onSkip={()=>setPhase("loading")}/>;
   if(phase==="loading")return<><Spinner/><FloatTools showCalc={subject?.id==="maths"||subject?.id==="physique"}/></>;
-  if(phase==="error")return<p className="err">L'IA est surchargée — attends 10 secondes et réessaie !</p>;
+  if(phase==="error")return<ErrorRetry isRateLimit={true} onRetry={()=>setPhase("loading")}/>;
 
   return(
     <div>
