@@ -9,7 +9,7 @@ const SUBJECTS = [
   { id:"svt",      label:"SVT",             icon:"🔬", color:"#D97706", shadow:"#92400E" },
   { id:"physique", label:"Physique-Chimie", icon:"⚗️",  color:"#DC2626", shadow:"#991B1B" },
   { id:"emc",      label:"EMC",             icon:"⚖️",  color:"#0891B2", shadow:"#155E75" },
-  { id:"techno",   label:"Techno",     icon:"🖥️",  color:"#EA580C", shadow:"#9A3412" },
+  { id:"techno",   label:"Technologie",     icon:"🖥️",  color:"#EA580C", shadow:"#9A3412" },
 ];
 const CHAPTERS = {
   maths:    ["Géométrie plane","Calcul littéral","Statistiques & Probabilités","Fonctions","Calcul numérique","Pythagore & Thalès","Trigonométrie","Volumes & Aires"],
@@ -24,7 +24,7 @@ const CHAPTERS = {
 };
 const GEO_CHAPTERS = ["Géométrie plane","Pythagore & Thalès","Trigonométrie","Volumes & Aires"];
 const MIX_LIST = SUBJECTS.map(s=>s.label).join(", ");
-const SUBJECT_COLORS = {"Mathématiques":"#3B82F6","Français":"#7C3AED","Histoire":"#059669","Géographie":"#0D9488","SVT":"#D97706","Physique-Chimie":"#DC2626","EMC":"#0891B2","Techno":"#EA580C"};
+const SUBJECT_COLORS = {"Mathématiques":"#3B82F6","Français":"#7C3AED","Histoire":"#059669","Géographie":"#0D9488","SVT":"#D97706","Physique-Chimie":"#DC2626","EMC":"#0891B2","Technologie":"#EA580C"};
 
 const BADGES = [
   {id:"first",   icon:"🎯",label:"Premier Quiz",        desc:"Tu as lancé ta première session de révision.",          hint:"Lance un quiz",                          check:s=>s.totalSessions>=1},
