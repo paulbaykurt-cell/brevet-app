@@ -152,9 +152,9 @@ function getDifficultyPrompt(){
 }
 
 const LOADING_MESSAGES = [
-  "Je prépare tes questions…","L'IA réfléchit pour toi…","On prépare tes questions…",
-  "Je cherche les meilleures questions…","Presque prêt…","Je calibre la difficulté…",
-  "Questions du brevet en approche…","Concentration maximale…",
+  "On cherche tes questions…","L'IA réfléchit…","Presque prêt…",
+  "Ça arrive…","Encore une seconde…","On y est presque…",
+  "L'IA se concentre…","Juste un instant…",
 ];
 
 // ── STATS ─────────────────────────────────────────────────────────────────────
@@ -1368,12 +1368,12 @@ function ErrorRetry({onRetry, isRateLimit}){
     <div style={{textAlign:"center",padding:"30px 0"}}>
       <div style={{fontSize:40,marginBottom:12}}>{isRateLimit?"⏳":"😕"}</div>
       <div style={{fontFamily:"var(--font-d)",fontSize:16,fontWeight:800,color:"var(--text)",marginBottom:8}}>
-        {isRateLimit?"L'IA est surchargée":"Problème de connexion"}
+        {isRateLimit?"L'IA est débordée là":"Problème de connexion"}
       </div>
       <div style={{fontSize:13,color:"var(--muted)",marginBottom:20,lineHeight:1.6}}>
         {isRateLimit
-          ?"Trop de demandes en même temps. Patiente un instant avant de réessayer."
-          :"Un souci technique est survenu. Réessaie !"}
+          ?"Trop de gens utilisent l'app en même temps. Attends un peu et réessaie."
+          :"Quelque chose s'est mal passé. Réessaie !"}
       </div>
       {countdown>0?(
         <div style={{background:"var(--bg2)",border:"1.5px solid var(--border)",borderRadius:14,padding:"14px 20px",display:"inline-block",marginBottom:16}}>
@@ -1382,7 +1382,7 @@ function ErrorRetry({onRetry, isRateLimit}){
         </div>
       ):(
         <button className="btn-cta" style={{maxWidth:280,margin:"0 auto"}} onClick={onRetry}>
-          ↩ Réessayer maintenant
+          Réessayer
         </button>
       )}
     </div>
@@ -1553,13 +1553,13 @@ function ReportButton({question, subject, chapter}){
             {done?(
               <div className="report-success">
                 <div style={{fontSize:36,marginBottom:8}}>✅</div>
-                <div className="report-title">Merci pour ton signalement !</div>
-                <div className="report-desc">On prend ça en compte pour améliorer l'app.</div>
+                <div className="report-title">Reçu, merci !</div>
+                <div className="report-desc">On va corriger ça.</div>
               </div>
             ):(
               <>
                 <div className="report-title">🚩 Signaler une erreur</div>
-                <div className="report-desc">Cette question a un problème ? Dis-nous lequel.</div>
+                <div className="report-desc">Un truc qui va pas dans cette question ?</div>
                 <div className="report-options">
                   {REPORT_REASONS.map((r,i)=>(
                     <button key={i} className={"report-option"+(selected===r?" selected":"")} onClick={()=>setSelected(r)}>
@@ -1571,13 +1571,13 @@ function ReportButton({question, subject, chapter}){
                   <textarea
                     className="answer-area"
                     style={{minHeight:70,marginBottom:10,fontSize:13}}
-                    placeholder="Décris l'erreur en détail (optionnel)…"
+                    placeholder="Explique en quelques mots (pas obligé)..."
                     value={description}
                     onChange={e=>setDescription(e.target.value)}
                   />
                 )}
                 <button className="btn-cta" disabled={!selected} onClick={submit}>
-                  Envoyer le signalement
+                  Signaler
                 </button>
                 <button className="btn-secondary" onClick={()=>{setOpen(false);setSelected(null);setDescription("");}}>
                   Annuler
@@ -1625,7 +1625,7 @@ function WelcomeBack({stats,onStartUrgent}){
 
   if(!isReturning&&urgent.length===0)return null;
 
-  const greeting=stats.streak>3?`🔥 ${stats.streak} jours de suite, continue !`:stats.totalSessions===0?"👋 Bienvenue ! Prêt à commencer ?":"👋 Bon retour !";
+  const greeting=stats.streak>3?`🔥 ${stats.streak} jours de suite, continue !`:stats.totalSessions===0?"👋 Première fois ? Choisis une matière et c'est parti 👇":"👋 Content de te revoir !";
   const hasName=stats.totalSessions>0;
 
   return(
@@ -1633,7 +1633,7 @@ function WelcomeBack({stats,onStartUrgent}){
       <div className="welcome-back-title">{greeting}</div>
       {urgent.length>0&&(
         <>
-          <div className="welcome-back-text" style={{marginBottom:8}}>Tu as des chapitres à retravailler :</div>
+          <div className="welcome-back-text" style={{marginBottom:8}}>Tu galères sur ces chapitres — fais-les en priorité :</div>
           {urgent.map((u,i)=>{
             const s=SUBJECTS.find(s=>s.id===u.sid);
             return<span key={i} className="urgent-chip" style={{display:"inline-flex",alignItems:"center",gap:5,background:"#FEF2F2",border:"1px solid #FECACA",borderRadius:8,padding:"4px 10px",fontSize:12,color:"#7F1D1D",cursor:"pointer",marginRight:6,marginBottom:4}} onClick={()=>onStartUrgent(u.sid,u.ch)}>
@@ -1657,8 +1657,8 @@ function DailyGoal({stats}){
   return(
     <div className="daily-goal">
       <div className="daily-goal-header">
-        <div className="daily-goal-title">🎯 Objectif du jour</div>
-        <div className="daily-goal-count" style={{color}}>{done}/{goal} sessions{pct>=100?" ✅":""}</div>
+        <div className="daily-goal-title">Objectif du jour</div>
+        <div className="daily-goal-count" style={{color}}>{done}/{goal} sessions{pct>=100?" — bien joué !":""}</div>
       </div>
       <div className="goal-bar"><div className="goal-fill" style={{width:`${pct}%`,background:pct>=100?"linear-gradient(90deg,#10B981,#059669)":undefined}}/></div>
       <div style={{display:"flex",justifyContent:"space-between",fontSize:11,color:"var(--muted)",marginTop:7}}>
@@ -1700,7 +1700,7 @@ function BadgesPage({stats,onBack}){
       {/* Badges obtenus */}
       {earned.length>0&&(
         <>
-          <div className="section-title" style={{marginBottom:10}}>✅ Obtenus</div>
+          <div className="section-title" style={{marginBottom:10}}>Déjà débloqués</div>
           <div className="badges-page-grid" style={{marginBottom:20}}>
             {BADGES.filter(b=>earned.includes(b.id)).map(b=>(
               <div key={b.id} className="badge-card earned" onClick={()=>playChip()}>
@@ -1708,7 +1708,7 @@ function BadgesPage({stats,onBack}){
                 <div className="badge-info">
                   <div className="badge-name">{b.label}</div>
                   <div className="badge-desc">{b.desc}</div>
-                  <div className="badge-earned-tag">✓ Débloqué</div>
+                  <div className="badge-earned-tag">✓ Obtenu</div>
                 </div>
               </div>
             ))}
@@ -1719,7 +1719,7 @@ function BadgesPage({stats,onBack}){
       {/* Badges à débloquer */}
       {BADGES.filter(b=>!earned.includes(b.id)).length>0&&(
         <>
-          <div className="section-title" style={{marginBottom:10}}>🔒 À débloquer</div>
+          <div className="section-title" style={{marginBottom:10}}>Pas encore débloqués</div>
           <div className="badges-page-grid">
             {BADGES.filter(b=>!earned.includes(b.id)).map(b=>(
               <div key={b.id} className="badge-card locked">
@@ -1744,8 +1744,8 @@ function Dashboard({stats, onOpenBadges}){
   const earned=BADGES.filter(b=>stats.badges.includes(b.id));
   return(
     <div className="dashboard">
-      <div className="dash-card"><div className="dash-label">🔥 Streak</div><div className="dash-big">{stats.streak}</div><div className="dash-sub">jour{stats.streak>1?"s":""} de suite</div></div>
-      <div className="dash-card"><div className="dash-label">⚡ XP Total</div><div className="dash-big">{stats.xp}</div><div className="dash-sub" style={{color:lv.color,fontWeight:700}}>{lv.label}</div>{lv.next&&<div className="xp-bar"><div className="xp-fill" style={{width:`${progress}%`}}/></div>}</div>
+      <div className="dash-card"><div className="dash-label">🔥 Série</div><div className="dash-big">{stats.streak}</div><div className="dash-sub">jour{stats.streak>1?"s":""} de suite</div></div>
+      <div className="dash-card"><div className="dash-label">⚡ XP</div><div className="dash-big">{stats.xp}</div><div className="dash-sub" style={{color:lv.color,fontWeight:700}}>{lv.label}</div>{lv.next&&<div className="xp-bar"><div className="xp-fill" style={{width:`${progress}%`}}/></div>}</div>
       {earned.length>0&&<div className="dash-card dash-full" style={{cursor:"pointer"}} onClick={()=>{playChip();onOpenBadges();}}><div className="dash-label">🏅 Badges ({earned.length}/{BADGES.length}) <span style={{fontSize:10,color:"#7C3AED",fontWeight:600}}>— Voir tous →</span></div><div className="badges-wrap">{earned.slice(0,6).map(b=><div key={b.id} className="badge-chip">{b.icon} {b.label}</div>)}{earned.length>6&&<div className="badge-chip" style={{color:"#7C3AED"}}>+{earned.length-6} autres…</div>}</div></div>}
     </div>
   );
@@ -1763,13 +1763,13 @@ function TodayWidget({onStartSession, planningKey}){
 // ── Mind Map ──────────────────────────────────────────────────────────────────
 function MindMap({stats}){
   const[open,setOpen]=useState(null);
-  return(<div><div className="section-title" style={{marginBottom:8}}>🗺️ Carte de progression</div><p style={{fontSize:12,color:"var(--muted)",marginBottom:14}}>🟢 Maîtrisé · 🟡 Fragile · 🔴 À retravailler · ⚪ Non révisé</p><div className="mindmap-grid">{SUBJECTS.map(s=>{const xp=stats.subjectXP?.[s.id]||0;const weak=stats.weakChapters?.[s.id]||{};const lv=getLevel(xp);const isOpen=open===s.id;return(<div key={s.id} className="mindmap-subject" style={isOpen?{borderColor:s.color}:{}} onClick={()=>setOpen(isOpen?null:s.id)}><div style={{display:"flex",alignItems:"center",gap:8,marginBottom:isOpen?10:0}}><span style={{fontSize:20}}>{s.icon}</span><div><div style={{fontFamily:"var(--font-d)",fontSize:12,fontWeight:800,color:"var(--text)"}}>{s.label}</div><div style={{fontSize:10,fontWeight:600,color:lv.color}}>{lv.label} · {xp} XP</div></div></div>{isOpen&&(CHAPTERS[s.id]||[]).map(ch=>{const n=weak[ch]||0;const dot=xp===0?"#D1D5DB":n>=3?"#DC2626":n>=1?"#D97706":"#059669";const bg=xp===0?"#F9FAFB":n>=3?"#FEF2F2":n>=1?"#FFFBEB":"#F0FDF4";return<div key={ch} className="mindmap-ch-row" style={{background:bg}}><span style={{fontSize:11,color:"var(--text)"}}>{ch}</span><div className="mastery-dot" style={{background:dot}}/></div>;})}{!isOpen&&<div style={{fontSize:11,color:"var(--muted)",marginTop:4}}>Clique pour voir les chapitres →</div>}</div>);})}</div></div>);
+  return(<div><div className="section-title" style={{marginBottom:8}}>Carte de progression</div><p style={{fontSize:12,color:"var(--muted)",marginBottom:14}}>🟢 Maîtrisé · 🟡 Fragile · 🔴 À retravailler · ⚪ Non révisé</p><div className="mindmap-grid">{SUBJECTS.map(s=>{const xp=stats.subjectXP?.[s.id]||0;const weak=stats.weakChapters?.[s.id]||{};const lv=getLevel(xp);const isOpen=open===s.id;return(<div key={s.id} className="mindmap-subject" style={isOpen?{borderColor:s.color}:{}} onClick={()=>setOpen(isOpen?null:s.id)}><div style={{display:"flex",alignItems:"center",gap:8,marginBottom:isOpen?10:0}}><span style={{fontSize:20}}>{s.icon}</span><div><div style={{fontFamily:"var(--font-d)",fontSize:12,fontWeight:800,color:"var(--text)"}}>{s.label}</div><div style={{fontSize:10,fontWeight:600,color:lv.color}}>{lv.label} · {xp} XP</div></div></div>{isOpen&&(CHAPTERS[s.id]||[]).map(ch=>{const n=weak[ch]||0;const dot=xp===0?"#D1D5DB":n>=3?"#DC2626":n>=1?"#D97706":"#059669";const bg=xp===0?"#F9FAFB":n>=3?"#FEF2F2":n>=1?"#FFFBEB":"#F0FDF4";return<div key={ch} className="mindmap-ch-row" style={{background:bg}}><span style={{fontSize:11,color:"var(--text)"}}>{ch}</span><div className="mastery-dot" style={{background:dot}}/></div>;})}{!isOpen&&<div style={{fontSize:11,color:"var(--muted)",marginTop:4}}>Voir les chapitres</div>}</div>);})}</div></div>);
 }
 
 // ── Session History ───────────────────────────────────────────────────────────
 function SessionHistory({stats}){
   const hist=stats.sessionHistory||[];
-  if(!hist.length)return<p style={{textAlign:"center",color:"var(--muted)",fontSize:13,padding:"20px 0"}}>Rien pour l'instant — lance ton premier quiz et les stats apparaîtront ici !</p>;
+  if(!hist.length)return<p style={{textAlign:"center",color:"var(--muted)",fontSize:13,padding:"20px 0"}}>Aucune session pour l'instant — lance un quiz !</p>;
   return(<div><div className="section-title">📊 Historique ({hist.length} sessions)</div><div className="history-list">{hist.map((h,i)=>{const color=h.score>=h.total*.8?"#059669":h.score>=h.total*.5?"#D97706":"#DC2626";return(<div key={i} className="history-item"><div className="hist-score" style={{color}}>{h.score}/{h.total||"?"}</div><div className="hist-info"><div className="hist-subject">{h.subjectLabel||"Mix"} {h.mode==="long"?"· Question longue":""}</div><div className="hist-date">{h.date}</div></div><div className="hist-xp">+{h.xp||0} XP</div></div>);})}</div></div>);
 }
 
@@ -1778,12 +1778,12 @@ function AISummary({stats,onBack}){
   const[state,setState]=useState("loading");
   const[data,setData]=useState(null);
   useEffect(()=>{withMinDelay(callClaude(buildSummaryPrompt(stats.weakChapters,stats.subjectXP),null,1000)).then(d=>{setData(d);setState("done");}).catch(()=>setState("error"));},[]);
-  if(state==="loading")return<><button className="btn-ghost" onClick={onBack}>← Retour</button><Spinner text="L'IA analyse tes révisions…"/></>;
+  if(state==="loading")return<><button className="btn-ghost" onClick={onBack}>← Retour</button><Spinner text="L'IA regarde tes stats…"/></>;
   if(state==="error")return<><button className="btn-ghost" onClick={onBack}>← Retour</button><p className="err">Erreur. Réessaie !</p></>;
   return(
     <div>
       <button className="btn-ghost" onClick={onBack}>← Retour</button>
-      <div className="section-title">🧠 Résumé IA personnalisé</div>
+      <div className="section-title">Ce que l'IA pense de tes révisions</div>
       <div className="summary-card">
         <div className="summary-msg">"{data.message_motivant}"</div>
         <p style={{fontSize:13,color:"var(--text2)",lineHeight:1.7,marginBottom:14}}>{data.analyse}</p>
@@ -1828,7 +1828,7 @@ function VeilleMode({onBack,onStatsUpdate}){
     <div>
       <button className="btn-ghost" onClick={onBack}>← Retour</button>
       <div className="section-title">🎯 Les essentiels</div>
-      <p style={{fontSize:13,color:"var(--muted)",marginBottom:16,lineHeight:1.6}}>Ce qui tombe vraiment au brevet — les 15 points clés par matière. Parfait pour réviser en 10 minutes !</p>
+      <p style={{fontSize:13,color:"var(--muted)",marginBottom:16,lineHeight:1.6}}>Ce qui tombe vraiment — les 15 points clés par matière. Parfait pour réviser en 10 minutes !</p>
       <div className="subject-grid">
         {SUBJECTS.map(s=>(
           <div key={s.id} className="subject-card" onClick={()=>launch(s)}>
@@ -1858,7 +1858,7 @@ function VeilleMode({onBack,onStatsUpdate}){
         <span style={{fontSize:28}}>{subject?.icon}</span>
         <div>
           <div className="section-title" style={{marginBottom:2}}>🎯 Les essentiels</div>
-          <div style={{fontFamily:"var(--font-d)",fontSize:16,fontWeight:800,color:"var(--text)"}}>{subject?.label} — L'essentiel à savoir</div>
+          <div style={{fontFamily:"var(--font-d)",fontSize:16,fontWeight:800,color:"var(--text)"}}>{subject?.label} — Ce qui tombe vraiment</div>
         </div>
       </div>
       {notions.map((n,i)=>(
@@ -1874,7 +1874,7 @@ function VeilleMode({onBack,onStatsUpdate}){
           </>}
         </div>
       ))}
-      <button className="btn-cta" onClick={()=>{setStep("pick");setState("idle");setNotions([]);}}>Changer de matière →</button>
+      <button className="btn-cta" onClick={()=>{setStep("pick");setState("idle");setNotions([]);}}>Autre matière →</button>
     </div>
   );
 }
@@ -1893,7 +1893,7 @@ function MiniFiche({subject,chapter,onContinue,onSkip}){
   return(
     <div>
       <div className="mini-fiche">
-        <div className="mini-fiche-title">📋 Mini-fiche — {chapter||subject}</div>
+        <div className="mini-fiche-title">À retenir — {chapter||subject}</div>
         {points.map((p,i)=>(
           <div key={i} className="mini-fiche-point">
             <span className="mini-fiche-point-title">{i+1}. {p.titre}</span>
@@ -1901,8 +1901,8 @@ function MiniFiche({subject,chapter,onContinue,onSkip}){
           </div>
         ))}
       </div>
-      <button className="btn-cta" onClick={onContinue}>C'est noté, on y va ! →</button>
-      <button className="btn-secondary" onClick={onSkip}>Passer la fiche</button>
+      <button className="btn-cta" onClick={onContinue}>Ok, c'est parti !</button>
+      <button className="btn-secondary" onClick={onSkip}>Passer</button>
     </div>
   );
 }
@@ -2267,7 +2267,7 @@ function ExamMode({onBack, onStatsUpdate}){
               <>
                 {/* Correction */}
                 <div className="correction-card">
-                  <h3>📝 Correction type</h3>
+                  <h3>📝 Ce qu'il fallait répondre</h3>
                   <div className="correction-text">{q.correction}</div>
                   {q.points_cles?.length>0&&(
                     <><div style={{fontSize:10,letterSpacing:2,textTransform:"uppercase",color:"#6D28D9",marginTop:12,marginBottom:6,fontWeight:700}}>Points clés</div>
@@ -2460,7 +2460,7 @@ function QuizMode({subject,chapter,isMix,count,onBack,onStatsUpdate,showFiche=fa
     <div className="score-wrap">
       <div style={{fontSize:48,marginBottom:12}}>🌙</div>
       <div className="score-message">Tu as bien révisé aujourd'hui !</div>
-      <div className="score-sub" style={{marginBottom:16}}>Limite de {DAILY_QUESTION_LIMIT} questions atteinte. Reviens demain — les révisions régulières sont plus efficaces qu'une session marathon !</div>
+      <div className="score-sub" style={{marginBottom:16}}>T'as fait tes {DAILY_QUESTION_LIMIT} questions du jour. Reviens demain — réviser tous les jours c'est bien mieux qu'un marathon la veille !</div>
       <button className="btn-cta" onClick={onBack}>Retour à l'accueil</button>
     </div>
   );
@@ -2477,12 +2477,12 @@ function QuizMode({subject,chapter,isMix,count,onBack,onStatsUpdate,showFiche=fa
     <div className="score-wrap">
       <button className="btn-ghost" onClick={onBack}>← Retour</button>
       <div className="score-ring" style={{borderColor:scoreColor,color:scoreColor}}>{score}/{questions.length}</div>
-      <div className="score-message">{score>=questions.length*.8?"🎉 Trop bien !":score>=questions.length*.5?"👍 Bien joué !":"💪 Accroche-toi, ça vient !"}</div>
-      <div className="score-sub">{isMix?"🎲 Mix Brevet":`${subject?.icon} ${subject?.label}${chapter?` · ${chapter}`:""}`}</div>
-      <div className="xp-toast">+{xpEarned} XP gagnés {getDifficultyMultiplier()>1?`(×${getDifficultyMultiplier()} ${DIFFICULTY_LEVELS.find(l=>l.id===getDifficulty())?.emoji})`:""}!</div>
+      <div className="score-message">{score>=questions.length*.8?"🎉 Parfait, t'as tout bon !":score>=questions.length*.5?"👍 Pas mal — encore un peu !":"💪 C'est dur mais tu vas y arriver"}</div>
+      <div className="score-sub">{isMix?"Mix toutes matières":`${subject?.icon} ${subject?.label}${chapter?` · ${chapter}`:""}`}</div>
+      <div className="xp-toast">+{xpEarned} XP 🎯{getDifficultyMultiplier()>1?` (×${getDifficultyMultiplier()} ${DIFFICULTY_LEVELS.find(l=>l.id===getDifficulty())?.emoji})`:""}</div>
       {score<questions.length*.5&&(
         <div className="encourage-card">
-          💡 Score faible sur {isMix?"ce mix":chapter||subject?.label} — retravaille ce chapitre avec une <strong>Question Longue</strong> pour consolider les bases. Tu peux le faire !
+          💡 T'as galéré sur {isMix?"ce mix":chapter||subject?.label} — essaie la Question Longue sur ce chapitre — ça aide vraiment.
         </div>
       )}
       {newBadges.map(bid=>{const b=BADGES.find(x=>x.id===bid);return b?<div key={bid} className="new-badge-toast">🏅 Nouveau badge : {b.icon} {b.label}</div>:null;})}
@@ -2512,14 +2512,14 @@ function QuizMode({subject,chapter,isMix,count,onBack,onStatsUpdate,showFiche=fa
         {q.choices.map(c=>{let cls="choice-btn";if(selected!==null){if(c.startsWith(q.answer))cls+=" correct";else if(c===selected)cls+=" wrong";}return<button key={c} className={cls} disabled={selected!==null} onClick={()=>handleAnswer(c)}>{c}</button>;})}
       </div>
       {selected&&<>
-        <div className="explanation"><strong>💡 Explication</strong>{q.explanation}</div>
+        <div className="explanation"><strong>💡</strong>{q.explanation}</div>
         <div style={{display:"flex",justifyContent:"flex-end",marginBottom:6}}>
           <ReportButton question={q.question} subject={subject?.label} chapter={chapter}/>
         </div>
         {isWrong&&!errorExplain&&!loadingExplain&&<button className="btn-secondary" style={{marginBottom:10}} onClick={askExplain}>🤔 Pourquoi ma réponse était fausse ?</button>}
         {loadingExplain&&<p style={{textAlign:"center",fontSize:12,color:"var(--accent)",marginBottom:10}}>Analyse…</p>}
-        {errorExplain&&<div className="error-explain"><strong>🔍 Comprendre l'erreur</strong>{errorExplain}</div>}
-        {etymology&&<div style={{background:"#FFF7ED",border:"1.5px solid #FED7AA",borderRadius:10,padding:"8px 12px",marginBottom:10,fontSize:12,color:"#92400E"}}><strong style={{display:"block",fontSize:10,letterSpacing:2,textTransform:"uppercase",marginBottom:3}}>📚 Étymologie</strong>{etymology}</div>}
+        {errorExplain&&<div className="error-explain"><strong>🔍 Pourquoi t'as faux</strong>{errorExplain}</div>}
+        {etymology&&<div style={{background:"#FFF7ED",border:"1.5px solid #FED7AA",borderRadius:10,padding:"8px 12px",marginBottom:10,fontSize:12,color:"#92400E"}}><strong style={{display:"block",fontSize:10,letterSpacing:2,textTransform:"uppercase",marginBottom:3}}>📚 Le mot vient de</strong>{etymology}</div>}
         <button className="btn-cta" onClick={handleNext}>{isLast?"Voir mon score →":"Question suivante →"}</button>
       </>}
       <FloatTools showCalc={subject?.id==="maths"||subject?.id==="physique"}/>
@@ -2587,10 +2587,10 @@ function LongMode({subject,chapter,isMix,onBack,onStatsUpdate,showFiche=false}){
       )}
       {!revealed?(
         <>
-          <textarea className="answer-area" placeholder={isDev?"Écris ton développement ici — intro, arguments, conclusion…":"Écris ta réponse ici…"} value={answer} onChange={e=>setAnswer(e.target.value)}/>
+          <textarea className="answer-area" placeholder={isDev?"Intro, développement, conclusion — vas-y !":"Rédige ta réponse..."} value={answer} onChange={e=>setAnswer(e.target.value)}/>
           {answer.trim().length>=10&&!evalScore&&(
             <div className="self-eval">
-              <div className="self-eval-label">🤔 Avant de voir la correction — tu penses avoir répondu…</div>
+              <div className="self-eval-label">Honnêtement, tu penses avoir répondu comment ?</div>
               <div className="self-eval-row">
                 {["😰 Pas bien","😐 Moyen","🙂 Assez bien","😊 Bien","🎯 Très bien"].map((e,i)=>(
                   <button key={i} className={"eval-btn"+(evalScore===i?" selected":"")} onClick={()=>setEvalScore(i)}>{e}</button>
@@ -2599,7 +2599,7 @@ function LongMode({subject,chapter,isMix,onBack,onStatsUpdate,showFiche=false}){
             </div>
           )}
           <button className="btn-cta" onClick={handleReveal} disabled={answer.trim().length<10||evalScore===null}>
-            {evalScore===null&&answer.trim().length>=10?"Évalue-toi d'abord ↑":"Voir la correction →"}
+            {evalScore===null&&answer.trim().length>=10?"Note-toi d'abord ↑":"Je veux voir la correction"}
           </button>
           {answer.length>0&&answer.trim().length<10&&<p className="hint">Rédige une réponse un peu plus longue !</p>}
         </>
@@ -2608,18 +2608,18 @@ function LongMode({subject,chapter,isMix,onBack,onStatsUpdate,showFiche=false}){
           <div className="correction-card">
             <h3>📝 Correction type</h3>
             <div className="correction-text">{data.correction}</div>
-            {data.points_cles?.length>0&&(<><div style={{fontSize:10,letterSpacing:2,textTransform:"uppercase",color:"#6D28D9",marginTop:12,marginBottom:6,fontWeight:700}}>Points clés attendus</div><div className="points-cles">{data.points_cles.map((p,i)=><div key={i} className="point">{p}</div>)}</div></>)}
+            {data.points_cles?.length>0&&(<><div style={{fontSize:10,letterSpacing:2,textTransform:"uppercase",color:"#6D28D9",marginTop:12,marginBottom:6,fontWeight:700}}>Les points à ne pas oublier</div><div className="points-cles">{data.points_cles.map((p,i)=><div key={i} className="point">{p}</div>)}</div></>)}
           </div>
           <div style={{display:"flex",justifyContent:"flex-end",marginBottom:8}}>
             <ReportButton question={data.question} subject={isMix?data.matiere:subject?.label} chapter={chapter}/>
           </div>
           <div style={{marginBottom:12,background:"var(--surface2)",borderRadius:12,padding:12,border:"1.5px solid var(--border)"}}>
-            <div style={{fontSize:10,letterSpacing:2,textTransform:"uppercase",color:"var(--muted)",marginBottom:6,fontWeight:700}}>Ta réponse</div>
+            <div style={{fontSize:10,letterSpacing:2,textTransform:"uppercase",color:"var(--muted)",marginBottom:6,fontWeight:700}}>T'as écrit</div>
             <div style={{fontSize:13,lineHeight:1.75,color:"var(--text2)",whiteSpace:"pre-wrap"}}>{answer}</div>
           </div>
           {!grade&&!grading&&(
             <button className="btn-cta" style={{marginBottom:10,background:"linear-gradient(180deg,#059669,#047857)"}} onClick={handleGrade}>
-              🎓 Faire noter ma réponse par l'IA /10
+              Faire noter par l'IA
             </button>
           )}
           {grading&&<Spinner text="L'IA note ta réponse…"/>}
@@ -2631,9 +2631,9 @@ function LongMode({subject,chapter,isMix,onBack,onStatsUpdate,showFiche=false}){
               {grade.points_a_ameliorer?.length>0&&(<><div className="grade-section" style={{color:"#DC2626"}}>📌 À améliorer</div>{grade.points_a_ameliorer.map((p,i)=><div key={i} className="point" style={{color:"#991B1B"}}>{p}</div>)}</>)}
             </div>
           )}
-          <div className="xp-toast" style={{display:"block",textAlign:"center",marginBottom:12}}>+15 XP gagnés !</div>
+          <div className="xp-toast" style={{display:"block",textAlign:"center",marginBottom:12}}>+15 XP 💪</div>
           {newBadges.map(bid=>{const b=BADGES.find(x=>x.id===bid);return b?<div key={bid} className="new-badge-toast">🏅 {b.icon} {b.label}</div>:null;})}
-          <button className="btn-cta" onClick={onBack}>Nouvelle question →</button>
+          <button className="btn-cta" onClick={onBack}>Autre question →</button>
         </>
       )}
       <FloatTools showCalc={subject?.id==="maths"||subject?.id==="physique"}/>
@@ -2729,11 +2729,11 @@ function PlanningScreen({onBack,onStartSession,onPlanningUpdate}){
       {state==="form"&&(
         <div className="planning-header">
           <div style={{fontSize:44,marginBottom:10}}>📅</div>
-          <div className="planning-title">Mon Planning Brevet</div>
-          <div className="planning-desc">Entre la date du brevet ou le nombre de semaines restantes. Le planning se génère semaine par semaine.</div>
+          <div className="planning-title">Mon planning</div>
+          <div className="planning-desc">Mets ta date de brevet ou le nombre de semaines — le planning s'adapte tout seul.</div>
           <div style={{display:"flex",gap:8,marginBottom:14}}>
-            <button className={`count-btn${!useWeeks?" selected":""}`} onClick={()=>setUseWeeks(false)}>📅 Date exacte</button>
-            <button className={`count-btn${useWeeks?" selected":""}`} onClick={()=>setUseWeeks(true)}>⏳ En semaines</button>
+            <button className={`count-btn${!useWeeks?" selected":""}`} onClick={()=>setUseWeeks(false)}>Date exacte</button>
+            <button className={`count-btn${useWeeks?" selected":""}`} onClick={()=>setUseWeeks(true)}>En semaines</button>
           </div>
           {!useWeeks?(
             <input type="date" className="date-input" value={date} onChange={e=>setDate(e.target.value)} min={new Date().toISOString().split("T")[0]}/>
@@ -2744,7 +2744,7 @@ function PlanningScreen({onBack,onStartSession,onPlanningUpdate}){
               <span className="weeks-label">{weeks} sem.</span>
             </div>
           )}
-          <button className="btn-cta" disabled={!useWeeks&&!date} onClick={()=>{playCTA();generate();}}>Générer mon planning →</button>
+          <button className="btn-cta" disabled={!useWeeks&&!date} onClick={()=>{playCTA();generate();}}>Générer mon planning</button>
         </div>
       )}
 
@@ -2753,7 +2753,7 @@ function PlanningScreen({onBack,onStartSession,onPlanningUpdate}){
           <div className="planning-header">
             <div className="planning-title">📅 Planning Brevet</div>
             <div className="planning-desc">
-              {planning.length} jours générés · Clique sur une session pour la faire directement !
+              {planning.length} jours générés · Clique sur une session pour la faire maintenant
             </div>
             <button className="btn-secondary" onClick={()=>{setPlanning([]);setState("form");}}>↩ Recréer</button>
           </div>
@@ -2799,7 +2799,7 @@ function PlanningScreen({onBack,onStartSession,onPlanningUpdate}){
                 <Spinner text="Génération de la semaine suivante…"/>
               ):(
                 <button className="btn-secondary" style={{maxWidth:300,margin:"0 auto"}} onClick={loadNextWeek}>
-                  📅 Charger la semaine suivante →
+                  📅 Voir la semaine suivante →
                 </button>
               )}
             </div>
@@ -2845,11 +2845,11 @@ function SetupScreen({subject,onStart,onBack}){
     <div>
       <button className="btn-ghost" onClick={onBack}>← Matières</button>
       <div className="setup-pill"><span>{subject.icon}</span><span style={{color:subject.color}}>{subject.label}</span></div>
-      <div className="section-title">Comment veux-tu t'entraîner ?</div>
+      <div className="section-title">Comment tu veux bosser ?</div>
       <div className="training-grid">
         {[
-          {id:"mixed",icon:"🎯",label:"Tout ce qui tombe au brevet",desc:"Sujets les plus probables"},
-          {id:"chapter",icon:"📖",label:"Par chapitre",desc:"Cible un chapitre précis"},
+          {id:"mixed",icon:"🎯",label:"Ce qui tombe au brevet",desc:"Les classiques du DNB"},
+          {id:"chapter",icon:"📖",label:"Par chapitre",desc:"Je veux travailler un chapitre"},
         ].map(t=>(
           <div key={t.id} className="training-card" style={ss(trainingType===t.id)} onClick={()=>{playCardSelect();selectTraining(t.id);}}>
             <div className="training-icon">{t.icon}</div><div className="training-label">{t.label}</div><div className="training-desc">{t.desc}</div>
@@ -2859,7 +2859,7 @@ function SetupScreen({subject,onStart,onBack}){
 
       {trainingType==="chapter"&&(
         <div className="fade-in">
-          <div className="section-title">Choisis un chapitre</div>
+          <div className="section-title">Quel chapitre ?</div>
           <div className="chapter-chips">
             {chapters.map(c=>(
               <div key={c} className="chapter-chip"
@@ -2874,7 +2874,7 @@ function SetupScreen({subject,onStart,onBack}){
 
       {showModes&&(
         <div className="fade-in">
-          <div className="section-title">Type de questions</div>
+          <div className="section-title">Type de questions ?</div>
           <div className="mode-grid">
             {[
               {id:"quiz",  icon:"⚡", label:"Quiz",          desc:"QCM"},
@@ -2895,7 +2895,7 @@ function SetupScreen({subject,onStart,onBack}){
 
       {showCount&&(
         <div className="fade-in">
-          <div className="section-title">Nombre de questions</div>
+          <div className="section-title">Combien de questions ?</div>
           <div className="count-selector">
             {[3,5,10].map(n=>(
               <button key={n} className={"count-btn"+(qCount===n?" selected":"")} onClick={()=>{playChip();setQCount(n);}}>
@@ -2909,10 +2909,10 @@ function SetupScreen({subject,onStart,onBack}){
       {mode&&(
         <div className="fade-in">
           <label className="sound-toggle">
-            <input type="checkbox" defaultChecked onChange={e=>{soundEnabled.value=e.target.checked;}}/> Sons activés
+            <input type="checkbox" defaultChecked onChange={e=>{soundEnabled.value=e.target.checked;}}/> Sons
           </label>
           <label className="sound-toggle" style={{marginBottom:10}}>
-            <input type="checkbox" checked={showFiche} onChange={e=>setShowFiche(e.target.checked)}/> Mini-fiche avant de commencer
+            <input type="checkbox" checked={showFiche} onChange={e=>setShowFiche(e.target.checked)}/> Voir un résumé avant de commencer
           </label>
           <div className="sticky-cta">
             <button className="btn-cta" disabled={!canStart}
@@ -3006,16 +3006,16 @@ export default function App(){
           {screen==="home"&&(
             <>
               <div className="header">
-                <div className="badge-pill"><span className="badge-dot"/>Révision Brevet 3ème</div>
-                <h1>Prépare ton <span className="h1-accent">Brevet</span> 📖</h1>
-                <p>Questions IA · Programme officiel DNB</p>
+                <div className="badge-pill"><span className="badge-dot"/>Brevet 3ème</div>
+                <h1>Révise ton <span className="h1-accent">brevet</span> 🎯</h1>
+                <p>Questions générées par IA · Programme 3ème officiel</p>
               </div>
               <div className="home-tabs">
-                <button className={`home-tab${homeTab==="accueil"?" active":""}`} onClick={()=>{playClick();setHomeTab("accueil");}}>🏠 Accueil</button>
-                <button className={`home-tab${homeTab==="matieres"?" active":""}`} onClick={()=>{playClick();setHomeTab("matieres");}}>📚 Matières</button>
+                <button className={`home-tab${homeTab==="accueil"?" active":""}`} onClick={()=>{playClick();setHomeTab("accueil");}}>🏠</button>
+                <button className={`home-tab${homeTab==="matieres"?" active":""}`} onClick={()=>{playClick();setHomeTab("matieres");}}>Matières</button>
                 <button className={`home-tab${homeTab==="mix"?" active":""}`} onClick={()=>{playClick();setHomeTab("mix");}}>🎲 Mix</button>
                 <button className={`home-tab${homeTab==="carte"?" active":""}`} onClick={()=>{playClick();setHomeTab("carte");}}>🗺️ Carte</button>
-                <button className={`home-tab${homeTab==="plus"?" active":""}`} onClick={()=>{playClick();setHomeTab("plus");}}>✨ Plus</button>
+                <button className={`home-tab${homeTab==="plus"?" active":""}`} onClick={()=>{playClick();setHomeTab("plus");}}>Plus</button>
               </div>
 
               {homeTab==="accueil"&&(
@@ -3030,13 +3030,13 @@ export default function App(){
                       <TodayWidget onStartSession={startPlanningSession} planningKey={planningKey}/>
                   <div className="section-title">Lancer une session</div>
                   <button className="quick-btn" onClick={()=>{playCTA();setIsMix(true);setSubject(null);setChapter(null);setMode("quiz");setQCount(2);setShowFiche(false);setScreen("play");}}>
-                    ⚡ Session express — 2 questions, moins d'1 minute
+                    ⚡ 2 questions rapides — moins d'1 min
                   </button>
                   <div className="mode-grid">
                     {[
-                      {id:"mix-quiz",icon:"🎲",label:"Mix Quiz",desc:"5 QCM toutes matières"},
-                      {id:"mix-long",icon:"✍️",label:"Question longue",desc:"Façon brevet"},
-                      {id:"exam",icon:"🎓",label:"Simulation examen",desc:"Durée réelle · 1h à 3h"},
+                      {id:"mix-quiz",icon:"🎲",label:"Mix Quiz",desc:"5 questions, toutes matières"},
+                      {id:"mix-long",icon:"✍️",label:"Question longue",desc:"Comme au vrai brevet"},
+                      {id:"exam",icon:"🎓",label:"Simulation examen",desc:"Examen en conditions réelles"},
                       {id:"veille",icon:"🎯",label:"Les essentiels",desc:"L'essentiel à savoir"},
                     ].map(m=>(
                       <div key={m.id} className="mode-card" onClick={()=>{
@@ -3076,7 +3076,7 @@ export default function App(){
               {homeTab==="mix"&&(
                 <div className="mix-card">
                   <div className="mix-title">🎲 Mix Brevet</div>
-                  <div className="mix-desc">Toutes les matières mélangées · Sujets les plus probables</div>
+                  <div className="mix-desc">Toutes les matières, dans le désordre</div>
                   <div className="section-title" style={{marginBottom:12}}>Type de questions</div>
                   <div className="mode-grid" style={{marginBottom:10}}>
                     {[
@@ -3119,13 +3119,13 @@ export default function App(){
 
               {homeTab==="plus"&&(
                 <>
-                  <div className="section-title">Outils & fonctionnalités</div>
+                  <div className="section-title">Outils</div>
                   <div className="mode-grid">
                     {[
-                      {id:"planning",icon:"📅",label:"Mon Planning",desc:"Planning intelligent"},
+                      {id:"planning",icon:"📅",label:"Mon Planning",desc:"Révise selon un planning"},
                       {id:"veille",icon:"🎯",label:"Les essentiels",desc:"L'essentiel à savoir"},
                       {id:"exam",icon:"🎓",label:"Simulation examen",desc:"Durée réelle · 1h à 3h"},
-                      {id:"summary",icon:"🧠",label:"Résumé IA",desc:"Analyse personnalisée"},
+                      {id:"summary",icon:"🧠",label:"Résumé IA",desc:"Ce que l'IA pense de tes révisions"},
                     ].map(m=>(
                       <div key={m.id} className="mode-card" onClick={()=>{
                         if(m.id==="planning"){setHomeTab("planning-screen");return;}
@@ -3144,10 +3144,10 @@ export default function App(){
                   <div className="divider"/>
                   <div className="section-title">Réglages</div>
                   <label className="sound-toggle" style={{marginBottom:8}}>
-                    <input type="checkbox" defaultChecked onChange={e=>{soundEnabled.value=e.target.checked;}}/> Sons de feedback activés
+                    <input type="checkbox" defaultChecked onChange={e=>{soundEnabled.value=e.target.checked;}}/> Sons
                   </label>
                   <button className="btn-danger" onClick={()=>{if(window.confirm("Tu veux vraiment tout effacer ? (XP, streak, badges…) Impossible de revenir en arrière !")){localStorage.removeItem("brevet_v3");setStats({...EMPTY});}}}>
-                    🗑️ Réinitialiser mes stats
+                    🗑️ Tout effacer
                   </button>
                   <div className="divider"/>
                   <div className="section-title">🚩 Signalements</div>
