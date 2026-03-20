@@ -645,6 +645,76 @@ function playSound(type){
 async function withMinDelay(promise,ms=700){const[r]=await Promise.all([promise,new Promise(res=>setTimeout(res,ms))]);return r;}
 const SYSTEM_PROMPT = `Tu es un professeur expert du Brevet des collèges français (DNB), spécialisé dans la préparation des élèves de 3ème. Tes questions sont précises, pédagogiques, et strictement conformes au programme officiel du cycle 4. Tu varies toujours les formulations, les angles d'approche et les niveaux de difficulté. Tu génères UNIQUEMENT du JSON valide, sans backticks, sans texte avant ou après.`;
 
+// Programme officiel cycle 4 par matière — utilisé pour cadrer les questions
+const PROGRAMME = {
+  maths: `Programme officiel Maths 3ème (cycle 4) :
+- Nombres et calculs : fractions, puissances, racines carrées, calcul littéral, équations du 1er degré, systèmes
+- Géométrie : Pythagore et réciproque, Thalès et réciproque, trigonométrie (sin/cos/tan), transformations (symétrie, rotation, translation, homothétie)
+- Fonctions : notion de fonction, fonctions affines, lecture graphique
+- Statistiques : moyenne, médiane, étendue, quartiles, diagrammes
+- Probabilités : expériences aléatoires, probabilité d'un événement, tableaux de loi
+- Grandeurs et mesures : volumes (sphère, cylindre, cône, pyramide), vitesse, proportionnalité`,
+
+  svt: `Programme officiel SVT 3ème (cycle 4) :
+- Génétique et hérédité : ADN, gènes, allèles, phénotype/génotype, mutations, hérédité mendélienne, caryotype
+- Évolution du vivant : sélection naturelle, parenté des êtres vivants, classification, fossiles
+- Corps humain et santé : système nerveux, système immunitaire (immunité innée/adaptative, vaccins, anticorps), reproduction humaine, hormones, puberté
+- Microorganismes et santé : bactéries, virus, défenses immunitaires
+- Écosystèmes : chaînes alimentaires, réseaux trophiques, perturbations, biodiversité, développement durable
+- Géologie : tectonique des plaques, séismes, volcans, roches
+- UNIQUEMENT ces notions — aucun contenu hors programme 3ème`,
+
+  physique: `Programme officiel Physique-Chimie 3ème (cycle 4) :
+- Électricité : loi d'Ohm (U=RI), loi des nœuds, loi des mailles, puissance (P=UI), énergie électrique, circuits série/dérivation
+- Chimie : atomes, molécules, ions, réactions chimiques, équations bilan, combustion, acides/bases
+- Mécanique : forces (poids, réaction, frottement), principe d'inertie, loi de gravitation, pression
+- Optique : lumière blanche, spectre, réfraction, lentilles convergentes/divergentes, œil
+- Énergie : formes d'énergie, conversions, rendement, puissance
+- Ondes : son, fréquence, vitesse de propagation`,
+
+  histoire: `Programme officiel Histoire 3ème (cycle 4) :
+- 1ère Guerre Mondiale : causes, déroulement, conditions des soldats, bilan humain, traité de Versailles
+- Régimes totalitaires : nazisme, stalinisme, fascisme, propagande
+- 2ème Guerre Mondiale : causes, Shoah, Résistance française, Libération, bilan
+- La France sous l'Occupation : régime de Vichy, collaboration, Résistance
+- Décolonisation : indépendances, conflits (Algérie, Indochine)
+- Guerre Froide : blocs Est/Ouest, crises (Berlin, Cuba), fin de la Guerre Froide
+- La Ve République : institutions, De Gaulle, évolution politique
+- Le monde depuis 1989 : mondialisation, conflits, construction européenne`,
+
+  geo: `Programme officiel Géographie 3ème (cycle 4) :
+- Mondialisation : échanges commerciaux, FMN, flux migratoires, inégalités
+- Espaces urbains : métropolisation, villes mondiales, banlieues, étalement urbain
+- Développement durable : développement inégal, IDH, pays du Nord/Sud
+- Aménagement du territoire français : régions, transports, services
+- Union Européenne : fonctionnement, élargissement, enjeux
+- Espaces et ressources : eau, énergie, alimentation dans le monde
+- Risques et environnement : risques naturels, technologiques, changement climatique`,
+
+  francais: `Programme officiel Français 3ème (cycle 4) :
+- Grammaire : nature et fonction des mots, propositions subordonnées, modes et temps verbaux
+- Orthographe : accord sujet/verbe, accord du participe passé, homophones
+- Lecture/compréhension : identification du point de vue, implicite, figures de style (métaphore, comparaison, hyperbole, ironie, euphémisme, antithèse, anaphore)
+- Expression écrite : récit, description, argumentation, lettre, dialogue
+- Littérature : mouvements littéraires, types de textes, genres`,
+
+  emc: `Programme officiel EMC 3ème (cycle 4) :
+- Démocratie : principes, valeurs, droits et devoirs du citoyen
+- Institutions françaises : Ve République, pouvoirs exécutif/législatif/judiciaire, élections
+- Laïcité : définition, loi 1905, applications concrètes
+- Droits et libertés : Déclaration des Droits de l'Homme, droits fondamentaux, discrimination
+- Engagement citoyen : associations, syndicats, partis politiques, vote
+- Sécurité et défense : forces de l'ordre, armée, service national`,
+
+  techno: `Programme officiel Technologie 3ème (cycle 4) :
+- Programmation : algorithmes, conditions, boucles, fonctions, Python ou Scratch
+- Systèmes techniques : analyse fonctionnelle, cahier des charges, modélisation
+- Réseaux et Internet : protocoles, adresses IP, sécurité numérique, données personnelles
+- Développement durable : éco-conception, cycle de vie des produits, impact environnemental
+- Objets connectés : capteurs, actionneurs, communication sans fil
+- Projet technologique : démarche de conception, prototypage, test`,
+};
+
 async function callClaude(prompt,system,maxTokens=2000,retries=3){
   const sys=system||SYSTEM_PROMPT;
   for(let attempt=0;attempt<retries;attempt++){
@@ -697,10 +767,19 @@ const buildQuizPrompt=(subject,chapter,weak=[],count=5,seen=[])=>{
   const hint=weak.length?` Priorité sur ces chapitres fragiles: ${weak.join(", ")}.`:"";
   const avoid=seen.length?`\nÉVITE ABSOLUMENT ces questions déjà posées:\n${seen.slice(0,15).map((q,i)=>`${i+1}. "${q}"`).join("\n")}`:"";
   const diff=getDifficultyPrompt();
-  return`[Seed:${seed}] Génère exactement ${count} QCM NOUVEAUX et variés sur "${subject}"${chapter?` chapitre "${chapter}"`:" (sujets les plus probables au brevet)"}.${hint}${avoid}
+  // Programme officiel selon la matière
+  const subKey=subject?.toLowerCase().includes("svt")?"svt":
+    subject?.toLowerCase().includes("physique")?"physique":
+    subject?.toLowerCase().includes("math")?"maths":
+    subject?.toLowerCase().includes("fran")?"francais":
+    subject?.toLowerCase().includes("hist")?"histoire":
+    subject?.toLowerCase().includes("geo")?"geo":
+    subject?.toLowerCase().includes("emc")?"emc":
+    subject?.toLowerCase().includes("tech")?"techno":null;
+  const prog=subKey&&PROGRAMME[subKey]?`\nPROGRAMME OFFICIEL À RESPECTER STRICTEMENT :\n${PROGRAMME[subKey]}`:"";
+  return`[Seed:${seed}] Génère exactement ${count} QCM NOUVEAUX et variés sur "${subject}"${chapter?` chapitre "${chapter}"`:" (sujets les plus probables au brevet)"}.${hint}${avoid}${prog}
 Difficulté : ${diff}.
-Programme officiel 3ème. Varie les formulations, niveaux, angles d'approche.
-IMPORTANT : explications courtes (max 2 phrases). Questions et choix concis.
+IMPORTANT : 100% conforme au programme officiel 3ème cycle 4. Aucune notion hors programme. Explications courtes (2 phrases max).
 JSON:{"questions":[{"question":"...","chapter":"...","choices":["A. ...","B. ...","C. ...","D. ..."],"answer":"A","explanation":"..."}]}`;
 };
 const buildMixPrompt=(seen=[])=>{
@@ -712,9 +791,17 @@ const buildMixPrompt=(seen=[])=>{
 const buildMixLongPrompt=()=>`Génère 1 question ouverte type brevet. Matières: ${MIX_LIST}.
 JSON:{"question":"...","matiere":"...","context":"...","correction":"...","points_cles":["...","...","..."]}`;
 const buildLongPrompt=(subject,chapter)=>{
-  if(chapter==="Développement construit")return`Génère 1 développement construit Histoire-Géo type brevet 3ème (10 pts).\nJSON:{"question":"...","context":"...","correction":"...","points_cles":["...","...","..."]}`;
-  if(subject==="Anglais")return`Génère 1 exercice anglais niveau 3ème${chapter?` sur "${chapter}"`:""}.\nJSON:{"question":"...","context":"...","correction":"...","points_cles":["...","...","..."]}`;
-  return`Génère 1 question ouverte type brevet sur "${subject}"${chapter?` chapitre "${chapter}"`:" (sujets les plus probables)"} élève 3ème.\nJSON:{"question":"...","context":"...","correction":"...","points_cles":["...","...","..."]}`;
+  const subKey=subject?.toLowerCase().includes("svt")?"svt":
+    subject?.toLowerCase().includes("physique")?"physique":
+    subject?.toLowerCase().includes("math")?"maths":
+    subject?.toLowerCase().includes("fran")?"francais":
+    subject?.toLowerCase().includes("hist")?"histoire":
+    subject?.toLowerCase().includes("geo")?"geo":
+    subject?.toLowerCase().includes("emc")?"emc":
+    subject?.toLowerCase().includes("tech")?"techno":null;
+  const prog=subKey&&PROGRAMME[subKey]?`\nPROGRAMME OFFICIEL :\n${PROGRAMME[subKey]}`:"";
+  if(chapter==="Développement construit")return`Génère 1 développement construit Histoire type brevet 3ème (10 pts). 100% programme officiel cycle 4.${prog}\nJSON:{"question":"...","context":"...","correction":"...","points_cles":["...","...","..."]}`;
+  return`Génère 1 question ouverte type brevet sur "${subject}"${chapter?` chapitre "${chapter}"`:" (sujets les plus probables)"} élève 3ème. 100% conforme au programme officiel cycle 4. Aucune notion hors programme.${prog}\nJSON:{"question":"...","context":"...","correction":"...","points_cles":["...","...","..."]}`;
 };
 // ── VRAIS SUJETS BREVET par matière ──────────────────────────────────────────
 const EXAM_SUBJECTS = [
