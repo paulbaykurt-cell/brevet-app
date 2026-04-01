@@ -107,10 +107,10 @@ const THEMES = [
     label: "Nuit",
     emoji: "🌙",
     vars: {
-      "--bg":"#0E0B1E","--bg2":"#160F2E","--surface":"#1C1535","--surface2":"#231A42",
-      "--border":"#332860","--border2":"#3D3070","--text":"#EDE8FF","--text2":"#C4B8F0",
-      "--muted":"#8878C0","--accent":"#9F7AEA","--cta1":"#805AD5","--cta2":"#6B46C1",
-      "--cta-shadow":"#553C9A","--tab-active":"#9F7AEA","--card-hover":"#231A42",
+      "--bg":"#1A0A3C","--bg2":"#230D52","--surface":"#2B1060","--surface2":"#341470",
+      "--border":"#5B2DAA","--border2":"#6D38C0","--text":"#F0EAFF","--text2":"#D4BCFF",
+      "--muted":"#A882E0","--accent":"#B97FFF","--cta1":"#9B5FE8","--cta2":"#7C3AED",
+      "--cta-shadow":"#5B21B6","--tab-active":"#B97FFF","--card-hover":"#341470",
     }
   },
 ];
@@ -387,6 +387,137 @@ function DifficultySelector(){
   );
 }
 
+function ReferentialPanel(){
+  const[refs,setRefs]=useState(()=>{
+    const r={};
+    SUBJECTS.forEach(s=>{if(getRef(s.id))r[s.id]=true;});
+    return r;
+  });
+  const[status,setStatus]=useState({});
+  const fileInputs=useRef({});
+
+  const handleFile=async(subjectId,subjectLabel,file)=>{
+    if(!file)return;
+    setStatus(p=>({...p,[subjectId]:"loading"}));
+    try{
+      let compressed="";
+      const isPdf=file.type==="application/pdf"||file.name.toLowerCase().endsWith(".pdf");
+      if(isPdf){
+        const base64=await new Promise((res,rej)=>{
+          const r=new FileReader();
+          r.onload=()=>res(r.result.split(",")[1]);
+          r.onerror=()=>rej(new Error("Lecture échouée"));
+          r.readAsDataURL(file);
+        });
+        compressed=await callClaudeDoc(
+          base64,"application/pdf",
+          `Extrait et structure toutes les notions du programme officiel pour la matière "${subjectLabel}" niveau 3ème/cycle 4. Organise par grands thèmes. Garde uniquement les notions et concepts clés. Maximum 700 mots. Texte brut, sans markdown.`
+        );
+      } else {
+        const raw=await new Promise((res,rej)=>{
+          const r=new FileReader();
+          r.onload=()=>res(r.result);
+          r.onerror=()=>rej(new Error("Lecture échouée"));
+          r.readAsText(file,"UTF-8");
+        });
+        compressed=await callClaudeText(
+          `Voici un programme scolaire pour "${subjectLabel}" niveau 3ème.\nExtrait et structure toutes les notions clés par grands thèmes. Supprime tout ce qui n'est pas une notion ou un concept à connaître. Maximum 700 mots. Texte brut sans markdown.\n\n${raw.substring(0,8000)}`,
+          "Tu es un assistant pédagogique expert. Tu condenses des programmes scolaires en gardant uniquement les notions clés structurées par thèmes. Réponds uniquement avec le contenu, sans commentaire."
+        );
+      }
+      if(!compressed||compressed.length<30)throw new Error("Extraction vide");
+      saveRef(subjectId,compressed);
+      setRefs(p=>({...p,[subjectId]:true}));
+      setStatus(p=>({...p,[subjectId]:"ok"}));
+    }catch(e){
+      console.error("ReferentialPanel error:",e);
+      setStatus(p=>({...p,[subjectId]:"error"}));
+    }
+  };
+
+  const handleRemove=(subjectId)=>{
+    clearRef(subjectId);
+    setRefs(p=>({...p,[subjectId]:false}));
+    setStatus(p=>({...p,[subjectId]:undefined}));
+  };
+
+  const activeCount=Object.values(refs).filter(Boolean).length;
+
+  return(
+    <div style={{background:"var(--surface)",border:"1.5px solid var(--border)",borderRadius:16,padding:16,marginBottom:12,boxShadow:"0 3px 0 var(--border2)"}}>
+      <div className="section-title" style={{marginBottom:4}}>📄 Référentiels enseignants</div>
+      <p style={{fontSize:12,color:"var(--muted)",marginBottom:activeCount>0?8:14,lineHeight:1.6}}>
+        Upload le programme fourni par un prof (.txt ou .pdf). L'IA s'y limitera <strong>strictement</strong> pour générer toutes les questions. Traitement unique à l'upload — aucun coût supplémentaire ensuite.
+      </p>
+      {activeCount>0&&(
+        <div style={{background:"#F0FDF4",border:"1.5px solid #A7F3D0",borderRadius:10,padding:"7px 12px",marginBottom:12,fontSize:12,color:"#065F46",fontWeight:600}}>
+          ✅ {activeCount} référentiel{activeCount>1?"s":"" } actif{activeCount>1?"s":""} — les questions sont cadrées par tes documents.
+        </div>
+      )}
+      <div style={{display:"flex",flexDirection:"column",gap:7}}>
+        {SUBJECTS.map(s=>{
+          const hasRef=refs[s.id];
+          const st=status[s.id];
+          const isLoading=st==="loading";
+          return(
+            <div key={s.id} style={{
+              display:"flex",alignItems:"center",gap:10,
+              background:hasRef?"#F0FDF4":"var(--bg2)",
+              borderRadius:12,padding:"10px 12px",
+              border:`1.5px solid ${hasRef?"#6EE7B7":"var(--border)"}`,
+              transition:"all .2s"
+            }}>
+              <span style={{fontSize:17,flexShrink:0}}>{s.icon}</span>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{fontSize:13,fontWeight:700,color:"var(--text)",marginBottom:1}}>{s.label}</div>
+                <div style={{fontSize:11,color:
+                  isLoading?"#D97706":
+                  st==="ok"?"#059669":
+                  st==="error"?"#DC2626":
+                  hasRef?"#059669":"var(--muted)"
+                }}>
+                  {isLoading?"⏳ Extraction en cours…":
+                   st==="ok"?"✅ Référentiel activé":
+                   st==="error"?"❌ Erreur — réessaie":
+                   hasRef?"✅ Référentiel actif":"Aucun référentiel"}
+                </div>
+              </div>
+              {hasRef&&!isLoading&&(
+                <button onClick={()=>handleRemove(s.id)} style={{
+                  background:"#FEE2E2",border:"1px solid #FECACA",borderRadius:7,
+                  padding:"4px 8px",fontSize:11,color:"#DC2626",cursor:"pointer",flexShrink:0
+                }}>✕</button>
+              )}
+              {!isLoading&&(
+                <>
+                  <input
+                    ref={el=>{fileInputs.current[s.id]=el;}}
+                    type="file" accept=".txt,.pdf" style={{display:"none"}}
+                    onChange={e=>{handleFile(s.id,s.label,e.target.files?.[0]);e.target.value="";}}
+                  />
+                  <button onClick={()=>fileInputs.current[s.id]?.click()} style={{
+                    background:"var(--accent)",border:"none",borderRadius:8,
+                    padding:"6px 10px",fontSize:11,color:"#fff",cursor:"pointer",
+                    fontWeight:700,flexShrink:0,whiteSpace:"nowrap"
+                  }}>
+                    {hasRef?"🔄 Remplacer":"+ Upload"}
+                  </button>
+                </>
+              )}
+              {isLoading&&(
+                <div style={{fontSize:18,flexShrink:0,animation:"spin 1s linear infinite"}}>⏳</div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+      <div style={{marginTop:12,padding:"8px 12px",background:"#FFFBEB",borderRadius:8,fontSize:11,color:"#92400E",lineHeight:1.5}}>
+        ⚠️ Le référentiel remplace le programme intégré. L'IA refusera de générer des questions sur des notions absentes du document.
+      </div>
+    </div>
+  );
+}
+
 function BackupPanel({stats,onStatsRefresh}){
   const[importing,setImporting]=useState(false);
   const[msg,setMsg]=useState(null);
@@ -514,6 +645,30 @@ function addSeenQuestions(subjectId,questions){
 }
 function clearSeenQuestions(subjectId){
   try{localStorage.removeItem(`brevet_seen_${subjectId}`);}catch{}
+}
+
+// ── RÉFÉRENTIELS ENSEIGNANTS ──────────────────────────────────────────────────
+function getRef(subjectId){
+  try{return localStorage.getItem(`brevet_ref_${subjectId}`)||null;}catch{return null;}
+}
+function saveRef(subjectId,text){
+  try{localStorage.setItem(`brevet_ref_${subjectId}`,text.substring(0,4000));}catch{}
+}
+function clearRef(subjectId){
+  try{localStorage.removeItem(`brevet_ref_${subjectId}`);}catch{}
+}
+// Résout le subKey depuis un label de matière (même logique que les prompts)
+function subKeyFromLabel(label){
+  const l=label?.toLowerCase()||"";
+  if(l.includes("svt"))return"svt";
+  if(l.includes("physique"))return"physique";
+  if(l.includes("math"))return"maths";
+  if(l.includes("fran"))return"francais";
+  if(l.includes("hist"))return"histoire";
+  if(l.includes("geo"))return"geo";
+  if(l.includes("emc"))return"emc";
+  if(l.includes("tech"))return"techno";
+  return null;
 }
 
 // ── SOUND (Web Audio API) ─────────────────────────────────────────────────────
@@ -760,6 +915,18 @@ async function callClaudeText(prompt,system){
   if(data.error)throw new Error(data.error.message);
   return data.content?.[0]?.text||"";
 }
+async function callClaudeDoc(base64,mediaType,userPrompt){
+  const r=await fetch("/api/claude",{method:"POST",headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({model:"claude-haiku-4-5-20251001",max_tokens:1200,
+      system:"Tu es un assistant pédagogique expert. Tu extrais et structures les notions clés d'un programme scolaire. Réponds uniquement avec le contenu structuré par thèmes, sans commentaire ni markdown.",
+      messages:[{role:"user",content:[
+        {type:"document",source:{type:"base64",media_type:mediaType,data:base64}},
+        {type:"text",text:userPrompt}
+      ]}]})});
+  const data=await r.json();
+  if(data.error)throw new Error(data.error.message);
+  return data.content?.[0]?.text||"";
+}
 
 // ── PROMPTS ───────────────────────────────────────────────────────────────────
 const buildQuizPrompt=(subject,chapter,weak=[],count=5,seen=[])=>{
@@ -776,10 +943,14 @@ const buildQuizPrompt=(subject,chapter,weak=[],count=5,seen=[])=>{
     subject?.toLowerCase().includes("geo")?"geo":
     subject?.toLowerCase().includes("emc")?"emc":
     subject?.toLowerCase().includes("tech")?"techno":null;
-  const prog=subKey&&PROGRAMME[subKey]?`\nPROGRAMME OFFICIEL À RESPECTER STRICTEMENT :\n${PROGRAMME[subKey]}`:"";
+  const teacherRef=subKey?getRef(subKey):null;
+  const prog=teacherRef
+    ?`\nRÉFÉRENTIEL ENSEIGNANT (PRIORITÉ ABSOLUE — tu ne peux poser de questions que sur les notions présentes dans ce document, aucune exception) :\n${teacherRef}`
+    :subKey&&PROGRAMME[subKey]?`\nPROGRAMME OFFICIEL À RESPECTER STRICTEMENT :\n${PROGRAMME[subKey]}`:"";
+  const refWarning=teacherRef?"\nATTENTION : Toute notion absente du référentiel enseignant est STRICTEMENT INTERDITE.":"";
   return`[Seed:${seed}] Génère exactement ${count} QCM NOUVEAUX et variés sur "${subject}"${chapter?` chapitre "${chapter}"`:" (sujets les plus probables au brevet)"}.${hint}${avoid}${prog}
 Difficulté : ${diff}.
-IMPORTANT : 100% conforme au programme officiel 3ème cycle 4. Aucune notion hors programme. Explications courtes (2 phrases max).
+IMPORTANT : 100% conforme au programme officiel 3ème cycle 4. Aucune notion hors programme. Explications courtes (2 phrases max).${refWarning}
 JSON:{"questions":[{"question":"...","chapter":"...","choices":["A. ...","B. ...","C. ...","D. ..."],"answer":"A","explanation":"..."}]}`;
 };
 const buildMixPrompt=(seen=[])=>{
@@ -799,9 +970,13 @@ const buildLongPrompt=(subject,chapter)=>{
     subject?.toLowerCase().includes("geo")?"geo":
     subject?.toLowerCase().includes("emc")?"emc":
     subject?.toLowerCase().includes("tech")?"techno":null;
-  const prog=subKey&&PROGRAMME[subKey]?`\nPROGRAMME OFFICIEL :\n${PROGRAMME[subKey]}`:"";
-  if(chapter==="Développement construit")return`Génère 1 développement construit Histoire type brevet 3ème (10 pts). 100% programme officiel cycle 4.${prog}\nJSON:{"question":"...","context":"...","correction":"...","points_cles":["...","...","..."]}`;
-  return`Génère 1 question ouverte type brevet sur "${subject}"${chapter?` chapitre "${chapter}"`:" (sujets les plus probables)"} élève 3ème. 100% conforme au programme officiel cycle 4. Aucune notion hors programme.${prog}\nJSON:{"question":"...","context":"...","correction":"...","points_cles":["...","...","..."]}`;
+  const teacherRef=subKey?getRef(subKey):null;
+  const prog=teacherRef
+    ?`\nRÉFÉRENTIEL ENSEIGNANT (PRIORITÉ ABSOLUE — questions uniquement sur les notions de ce document) :\n${teacherRef}`
+    :subKey&&PROGRAMME[subKey]?`\nPROGRAMME OFFICIEL :\n${PROGRAMME[subKey]}`:"";
+  const refWarning=teacherRef?"\nATTENTION : Toute notion absente du référentiel est INTERDITE.":"";
+  if(chapter==="Développement construit")return`Génère 1 développement construit Histoire type brevet 3ème (10 pts). 100% programme officiel cycle 4.${prog}${refWarning}\nJSON:{"question":"...","context":"...","correction":"...","points_cles":["...","...","..."]}`;
+  return`Génère 1 question ouverte type brevet sur "${subject}"${chapter?` chapitre "${chapter}"`:" (sujets les plus probables)"} élève 3ème. 100% conforme au programme officiel cycle 4. Aucune notion hors programme.${prog}${refWarning}\nJSON:{"question":"...","context":"...","correction":"...","points_cles":["...","...","..."]}`;
 };
 // ── VRAIS SUJETS BREVET par matière ──────────────────────────────────────────
 const EXAM_SUBJECTS = [
@@ -916,9 +1091,13 @@ const buildVeillePrompt=(subject)=>{
     subject?.toLowerCase().includes("geo")?"geo":
     subject?.toLowerCase().includes("emc")?"emc":
     subject?.toLowerCase().includes("tech")?"techno":null;
-  const prog=subKey&&PROGRAMME[subKey]?`\nPROGRAMME À RESPECTER :\n${PROGRAMME[subKey]}`:"";
+  const teacherRef=subKey?getRef(subKey):null;
+  const prog=teacherRef
+    ?`\nRÉFÉRENTIEL ENSEIGNANT (PRIORITÉ ABSOLUE — génère uniquement des notions présentes dans ce document) :\n${teacherRef}`
+    :subKey&&PROGRAMME[subKey]?`\nPROGRAMME À RESPECTER :\n${PROGRAMME[subKey]}`:"";
+  const refWarning=teacherRef?"\nATTENTION : Toute notion absente du référentiel est STRICTEMENT INTERDITE.":"";
   return`Génère EXACTEMENT 15 notions essentielles pour réviser "${subject}" au brevet 3ème.${prog}
-Chaque notion doit être concise, claire, et 100% dans le programme officiel cycle 4.
+Chaque notion doit être concise, claire, et 100% dans le programme officiel cycle 4.${refWarning}
 RÉPONDS UNIQUEMENT avec ce JSON valide :
 {"notions":[{"titre":"nom court de la notion","contenu":"explication en 1-2 phrases","exemple":"exemple concret","astuces":"astuce mnémotechnique ou conseil"}]}`;
 };
@@ -2951,6 +3130,7 @@ export default function App(){
   const[qCount,setQCount]=useState(5);
   const[showFiche,setShowFiche]=useState(true);
   const[homeTab,setHomeTab]=useState("accueil");
+  const[settingsTab,setSettingsTab]=useState("outils");
   const[mixMode,setMixMode]=useState(null);
   const[stats,setStats]=useState(()=>getStats());
   const[subScreen,setSubScreen]=useState(null);
@@ -3134,58 +3314,107 @@ export default function App(){
 
               {homeTab==="parametres"&&(
                 <>
-                  <div className="section-title">Outils</div>
-                  <div className="mode-grid">
+                  {/* ── Onglets Paramètres ── */}
+                  <div style={{display:"flex",gap:6,marginBottom:16,background:"var(--bg2)",borderRadius:14,padding:"4px",border:"1.5px solid var(--border)"}}>
                     {[
-                      {id:"planning",icon:"📅",label:"Mon Planning",desc:"Révise selon un planning"},
-                      {id:"veille",icon:"🎯",label:"Les essentiels",desc:"L'essentiel à savoir"},
-                      {id:"exam",icon:"🎓",label:"Simulation examen",desc:"Durée réelle · 1h à 3h"},
-                      {id:"summary",icon:"🧠",label:"Résumé IA",desc:"Ce que l'IA pense de tes révisions"},
-                    ].map(m=>(
-                      <div key={m.id} className="mode-card" onClick={()=>{
-                        if(m.id==="planning"){setHomeTab("planning-screen");return;}
-                        if(m.id==="veille"){setMode("veille");setScreen("play");return;}
-                        if(m.id==="exam"){setMode("exam");setScreen("play");return;}
-                        if(m.id==="summary"){setHomeTab("carte");setSubScreen("summary");return;}
-                      }}>
-                        <div className="mode-icon">{m.icon}</div><div className="mode-label">{m.label}</div><div className="mode-desc">{m.desc}</div>
-                      </div>
+                      {id:"outils",   emoji:"🛠️", label:"Outils"},
+                      {id:"apparence",emoji:"🎨", label:"Apparence"},
+                      {id:"donnees",  emoji:"💾", label:"Données"},
+                      {id:"rapports", emoji:"🚩", label:"Rapports"},
+                    ].map(t=>(
+                      <button key={t.id}
+                        onClick={()=>{playChip();setSettingsTab(t.id);}}
+                        style={{
+                          flex:1,padding:"8px 4px",borderRadius:10,border:"none",
+                          background:settingsTab===t.id?"var(--tab-active)":"transparent",
+                          color:settingsTab===t.id?"#fff":"var(--muted)",
+                          fontFamily:"var(--font-b)",fontSize:10,fontWeight:700,
+                          cursor:"pointer",transition:"all .18s",
+                          boxShadow:settingsTab===t.id?"0 3px 8px rgba(0,0,0,.2)":"none",
+                          display:"flex",flexDirection:"column",alignItems:"center",gap:3,
+                        }}>
+                        <span style={{fontSize:15}}>{t.emoji}</span>
+                        <span>{t.label}</span>
+                      </button>
                     ))}
                   </div>
-                  <div className="divider"/>
-                  <ThemeSelector/>
-                  <DifficultySelector/>
-                  <BackupPanel stats={stats} onStatsRefresh={()=>setStats(getStats())}/>
-                  <div className="divider"/>
-                  <div className="section-title">Réglages</div>
-                  <label className="sound-toggle" style={{marginBottom:8}}>
-                    <input type="checkbox" defaultChecked onChange={e=>{soundEnabled.value=e.target.checked;}}/> Sons
-                  </label>
-                  <button className="btn-danger" onClick={()=>{if(window.confirm("Tu veux vraiment tout effacer ? (XP, streak, badges…) Impossible de revenir en arrière !")){localStorage.removeItem("brevet_v3");setStats({...EMPTY});}}}>
-                    🗑️ Tout effacer
-                  </button>
-                  <div className="divider"/>
-                  <div className="section-title">🚩 Signalements</div>
-                  {(()=>{
-                    const reports=JSON.parse(localStorage.getItem("brevet_reports")||"[]");
-                    if(reports.length===0)return<p style={{fontSize:12,color:"var(--muted)",marginBottom:8}}>Aucun signalement pour l'instant.</p>;
-                    return(
-                      <div style={{display:"flex",flexDirection:"column",gap:8,marginBottom:8}}>
-                        <p style={{fontSize:12,color:"var(--muted)",marginBottom:4}}>{reports.length} signalement{reports.length>1?"s":" "} enregistré{reports.length>1?"s":""}</p>
-                        {reports.slice(0,5).map((r,i)=>(
-                          <div key={i} style={{background:"#FEF2F2",border:"1.5px solid #FECACA",borderRadius:10,padding:"9px 12px"}}>
-                            <div style={{fontSize:11,fontWeight:700,color:"#DC2626",marginBottom:3}}>{r.reason}</div>
-                            <div style={{fontSize:11,color:"#991B1B",marginBottom:2}}>{r.subject}{r.chapter?` · ${r.chapter}`:""}</div>
-                            <div style={{fontSize:10,color:"#9CA3AF"}}>{r.question?.substring(0,80)}…</div>
+
+                  {/* ── Onglet Outils ── */}
+                  {settingsTab==="outils"&&(
+                    <>
+                      <div className="section-title">Outils de révision</div>
+                      <div className="mode-grid">
+                        {[
+                          {id:"planning",icon:"📅",label:"Mon Planning",desc:"Révise selon un planning"},
+                          {id:"veille",icon:"🎯",label:"Les essentiels",desc:"L'essentiel à savoir"},
+                          {id:"exam",icon:"🎓",label:"Simulation examen",desc:"Durée réelle · 1h à 3h"},
+                          {id:"summary",icon:"🧠",label:"Résumé IA",desc:"Ce que l'IA pense de tes révisions"},
+                        ].map(m=>(
+                          <div key={m.id} className="mode-card" onClick={()=>{
+                            if(m.id==="planning"){setHomeTab("planning-screen");return;}
+                            if(m.id==="veille"){setMode("veille");setScreen("play");return;}
+                            if(m.id==="exam"){setMode("exam");setScreen("play");return;}
+                            if(m.id==="summary"){setHomeTab("carte");setSubScreen("summary");return;}
+                          }}>
+                            <div className="mode-icon">{m.icon}</div><div className="mode-label">{m.label}</div><div className="mode-desc">{m.desc}</div>
                           </div>
                         ))}
-                        {reports.length>5&&<p style={{fontSize:11,color:"var(--muted)"}}>+{reports.length-5} autres signalements</p>}
-                        <button className="btn-secondary" style={{fontSize:12}} onClick={()=>{localStorage.removeItem("brevet_reports");window.location.reload();}}>
-                          Effacer tous les signalements
-                        </button>
                       </div>
-                    );
-                  })()}
+                      <div style={{marginTop:8,padding:"10px 14px",background:"var(--bg2)",borderRadius:12,fontSize:12,color:"var(--muted)",lineHeight:1.6}}>
+                        💡 Ces outils complètent les quiz par matière disponibles dans l'onglet <strong>Matières</strong>.
+                      </div>
+                    </>
+                  )}
+
+                  {/* ── Onglet Apparence ── */}
+                  {settingsTab==="apparence"&&(
+                    <>
+                      <ThemeSelector/>
+                      <DifficultySelector/>
+                    </>
+                  )}
+
+                  {/* ── Onglet Données ── */}
+                  {settingsTab==="donnees"&&(
+                    <>
+                      <ReferentialPanel/>
+                      <BackupPanel stats={stats} onStatsRefresh={()=>setStats(getStats())}/>
+                      <div className="section-title" style={{marginTop:4}}>Réglages</div>
+                      <label className="sound-toggle" style={{marginBottom:8}}>
+                        <input type="checkbox" defaultChecked onChange={e=>{soundEnabled.value=e.target.checked;}}/> Sons
+                      </label>
+                      <button className="btn-danger" onClick={()=>{if(window.confirm("Tu veux vraiment tout effacer ? (XP, streak, badges…) Impossible de revenir en arrière !")){localStorage.removeItem("brevet_v3");setStats({...EMPTY});}}}>
+                        🗑️ Tout effacer
+                      </button>
+                    </>
+                  )}
+
+                  {/* ── Onglet Rapports ── */}
+                  {settingsTab==="rapports"&&(
+                    <>
+                      <div className="section-title">🚩 Signalements</div>
+                      {(()=>{
+                        const reports=JSON.parse(localStorage.getItem("brevet_reports")||"[]");
+                        if(reports.length===0)return<p style={{fontSize:12,color:"var(--muted)",marginBottom:8}}>Aucun signalement pour l'instant.</p>;
+                        return(
+                          <div style={{display:"flex",flexDirection:"column",gap:8,marginBottom:8}}>
+                            <p style={{fontSize:12,color:"var(--muted)",marginBottom:4}}>{reports.length} signalement{reports.length>1?"s":" "} enregistré{reports.length>1?"s":""}</p>
+                            {reports.slice(0,5).map((r,i)=>(
+                              <div key={i} style={{background:"#FEF2F2",border:"1.5px solid #FECACA",borderRadius:10,padding:"9px 12px"}}>
+                                <div style={{fontSize:11,fontWeight:700,color:"#DC2626",marginBottom:3}}>{r.reason}</div>
+                                <div style={{fontSize:11,color:"#991B1B",marginBottom:2}}>{r.subject}{r.chapter?` · ${r.chapter}`:""}</div>
+                                <div style={{fontSize:10,color:"#9CA3AF"}}>{r.question?.substring(0,80)}…</div>
+                              </div>
+                            ))}
+                            {reports.length>5&&<p style={{fontSize:11,color:"var(--muted)"}}>+{reports.length-5} autres signalements</p>}
+                            <button className="btn-secondary" style={{fontSize:12}} onClick={()=>{localStorage.removeItem("brevet_reports");window.location.reload();}}>
+                              Effacer tous les signalements
+                            </button>
+                          </div>
+                        );
+                      })()}
+                    </>
+                  )}
                 </>
               )}
 
